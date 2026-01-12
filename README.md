@@ -1,5 +1,7 @@
 # TAVL Relevés Tool
 
+![Main Interface](showcase/desktop-edit.png)
+
 Web tool for importing, editing, and exporting survey XLSX files (Matrix structure).
 
 ## Features
@@ -14,6 +16,9 @@ Web tool for importing, editing, and exporting survey XLSX files (Matrix structu
   - **Smart Inputs**: Number fields and auto-expanding text areas.
 - **Sidebar Navigation**: Dynamically generated list of "Auditoires" (Auditoriums).
 - **Auto-Save**: Changes are persisted locally (IndexedDB). Session restore available on reload.
+  
+  ![Session Restore](showcase/desktop-saved.png)
+
 - **Smart Export**: Exports to XLSX preserving **original formatting** (colors, fonts, borders).
 
 ### Advanced Tools
@@ -38,11 +43,17 @@ Web tool for importing, editing, and exporting survey XLSX files (Matrix structu
 
 1. **Open**: Launch `index.html` in a modern browser (Chrome, Edge).
 2. **Import**: Drag & drop your `.xlsx` file (e.g., `Barbe.xlsx`).
+   
+   <img src="showcase/desktop-drop.png" width="45%" /> <img src="showcase/mobile-drop.png" width="20%" />
+
 3. **Navigate**: Click an Auditorium name in the sidebar.
 4. **Edit**:
    - Tab through fields or use the **⬇ Button** to jump to the next empty task.
    - Use **⚡ Fill** to pre-fill standard "All Good" values for a room.
    - If a structural error exists in the source, use **🔓 Unlock** to fix it.
+   
+   ![Mobile Interface](showcase/mobile-edit.png)
+
 5. **Export**: Click **"Exporter le relevé"** to download the completed file.
 
 ## Excel Structure & Constraints
