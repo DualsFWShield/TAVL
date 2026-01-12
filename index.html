@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAVL Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <h1>Relevés TAVL</h1>
+                <p>Analyse locale — Importez le fichier Excel pour commencer</p>
+            </div>
+            <div class="header-controls">
+                <button class="action-btn secondary" id="export-json-btn"
+                    style="padding: 0.4rem 1rem; font-size: 0.8rem; margin-right: 0.5rem;">JSON</button>
+                <button class="action-btn primary" id="export-xlsx-btn"
+                    style="padding: 0.4rem 1rem; font-size: 0.8rem;">
+                    <span>Exporter le relevé</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Upload Section -->
+            <section id="upload-section" class="upload-container">
+                <div class="drop-zone" id="drop-zone">
+                    <div class="icon">📂</div>
+                    <h2>Glissez-déposez votre fichier (Fichier.xlsx)</h2>
+                    <p>Structure Matrix automatique</p>
+                    <input type="file" id="file-input" accept=".xlsx" hidden>
+                </div>
+            </section>
+
+            <!-- Split View: Sidebar + Editor -->
+            <div id="split-view" class="split-view hidden">
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <h3>Auditoires</h3>
+                    </div>
+                    <ul id="auditoire-list" class="sidebar-list">
+                        <!-- List Items Injected Here -->
+                    </ul>
+                </aside>
+
+                <section class="editor-panel">
+                    <div class="editor-header">
+                        <h2 id="current-auditoire-title">Sélectionnez un auditoire</h2>
+                        <button id="clear-btn" class="secondary-btn">Fermer</button>
+                    </div>
+                    <div id="form-container" class="form-container">
+                        <!-- Dynamic Content will be injected here -->
+                        <div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
