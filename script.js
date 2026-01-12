@@ -424,7 +424,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         input.value = val;
                     }
 
-                    input.addEventListener('change', (e) => updateCell(field.colIndex, e.target.value));
+                    input.addEventListener('change', (e) => {
+                        const d = new Date(e.target.value);
+                        updateCell(field.colIndex, !isNaN(d) ? d : e.target.value);
+                    });
                     group.appendChild(input);
 
                 } else if (type === 'nombre') {
@@ -462,7 +465,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentRowIndex) return;
         const row = mainWorksheet.getRow(currentRowIndex);
         const cell = row.getCell(colIndex);
+
         cell.value = value;
+        if (value instanceof Date) {
+            cell.numFmt = 'dd/mm/yyyy';
+        }
+
         // Auto-save logic is essentially done here as we modify the object reference
         // Save to DB
         saveEditToDB(currentRowIndex, colIndex, value);
