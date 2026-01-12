@@ -287,7 +287,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!field.question && !field.type) return;
 
                 hasVisibleFields = true;
+                const cell = row.getCell(field.colIndex); // Get actual cell to check style
                 const val = getVal(row, field.colIndex);
+
+                // Detection logic for "Optional" (Pattern fill based on user input)
+                const isFacultatif = (c) => {
+                    if (!c || !c.style || !c.style.fill) return false;
+                    const f = c.style.fill;
+                    // User showed a pattern fill (dots/grid).
+                    // ExcelJS maps patterns like 'gray125', 'gray0625', 'mediumGray', etc.
+                    // We check if type is value pattern and it is NOT 'none' or 'solid' (unless solid grey, but user emphasized pattern)
+                    if (f.type === 'pattern' && f.pattern && f.pattern !== 'none' && f.pattern !== 'solid') {
+                        return true;
+                    }
+                    return false;
+                };
+
+                const isOptional = isFacultatif(cell);
 
                 const group = document.createElement('div');
                 group.className = 'field-group';
@@ -295,7 +311,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 const label = document.createElement('label');
                 label.className = 'field-question';
                 label.textContent = field.question || field.category; // Fallback
+
+                if (isOptional) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge-optional';
+                    badge.textContent = 'Facultatif';
+                    label.appendChild(badge);
+                }
+
                 group.appendChild(label);
+
+                // Read-Only Logic
+                // Normalize strings to check against user list
+                const catNorm = (field.category || '').toLowerCase().trim();
+                const questNorm = (field.question || '').toLowerCase().trim();
+
+                // List of keywords that trigger read-only
+                const readOnlyKeywords = [
+                    'bâtiment', 'batiment',
+                    'auditoire',
+                    'capacité annoncée',
+                    'gradin', 'mobile', 'fixe', 'gradin/mobile/fixe'
+                ];
+
+                // Check if category or question contains these keywords strictly for the user context
+                // User gave strict list: "Bâtiments", "Auditoires", "Capacité annoncée", "Gradin/Mobile/Fixe"
+                // We'll try to match inclusive.
+                let isReadOnly = false;
+                if (
+                    catNorm.includes('bâtiment') ||
+                    catNorm.includes('auditoires') ||
+                    catNorm.includes('capacité annoncée') ||
+                    questNorm.includes('bâtiment') ||
+                    questNorm.includes('auditoires') ||
+                    questNorm.includes('capacité annoncée') ||
+                    (catNorm.includes('gradin') && catNorm.includes('mobile')) // Specific for G/M/F likely
+                ) {
+                    isReadOnly = true;
+                }
+
+                // Special check for GMF if type is 'gmf' and context implies it's the structural definition
+                if (field.type === 'gmf' && (catNorm.includes('gradin') || questNorm.includes('gradin'))) {
+                    isReadOnly = true;
+                }
+
 
                 // Render Input based on type
                 const type = field.type;
@@ -311,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const radioContainer = document.createElement('div');
                     radioContainer.className = 'radio-group';
+                    if (isReadOnly) radioContainer.classList.add('disabled-group');
 
                     options.forEach(opt => {
                         const wrapper = document.createElement('label');
@@ -320,6 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         input.type = 'radio';
                         input.name = `field-${field.colIndex}`;
                         input.value = opt;
+                        if (isReadOnly) input.disabled = true;
+
                         // Case insensitive compare
                         if (val.toString().toLowerCase() === opt.toLowerCase()) input.checked = true;
 
@@ -337,6 +399,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (type === 'date') {
                     const input = document.createElement('input');
                     input.type = 'date';
+                    if (isReadOnly) {
+                        input.disabled = true;
+                        input.classList.add('input-disabled');
+                    }
                     // Excel dates might need conversion if numeric
                     if (val && !isNaN(Date.parse(val))) {
                         // It is a string date
@@ -365,6 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = document.createElement('input');
                     input.type = 'number';
                     input.value = val;
+                    if (isReadOnly) {
+                        input.disabled = true;
+                        input.classList.add('input-disabled');
+                    }
                     input.addEventListener('input', (e) => updateCell(field.colIndex, e.target.value));
                     group.appendChild(input);
                 } else {
@@ -372,6 +442,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = document.createElement('textarea');
                     input.rows = 2; // Auto expand maybe?
                     input.value = val;
+                    if (isReadOnly) {
+                        input.disabled = true;
+                        input.classList.add('input-disabled');
+                    }
                     input.addEventListener('input', (e) => updateCell(field.colIndex, e.target.value));
                     group.appendChild(input);
                 }
@@ -418,6 +492,200 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadSection.classList.remove('hidden');
         currentWorkbook = null;
         fileInput.value = '';
+    });
+
+    // --- New Features Logic ---
+
+    // 1. Force Edit Mode
+    const unlockBtn = document.getElementById('unlock-btn');
+    unlockBtn.addEventListener('click', () => {
+        if (confirm("Voulez-vous activer le mode 'Édition Forcée' ? Cela déverrouillera tous les champs structurels (Bâtiments, Capacité, etc.).")) {
+            document.body.classList.toggle('force-edit-mode');
+            if (currentRowIndex) renderForm(currentRowIndex); // Re-render to apply removal of disabled state
+        }
+    });
+
+    // 2. Fill Defaults
+    const fillDefaultsBtn = document.getElementById('fill-defaults-btn');
+    fillDefaultsBtn.addEventListener('click', () => {
+        if (!currentRowIndex || !mainWorksheet) return;
+
+        const row = mainWorksheet.getRow(currentRowIndex);
+        let editsMade = 0;
+
+        // Determine Capacité Annoncée Value (Search schema for it)
+        let capaAnnonceVal = '';
+        const capaField = schema.find(f => {
+            const c = (f.category || '').toLowerCase();
+            const q = (f.question || '').toLowerCase();
+            return c === 'capacité annoncée' || q === 'capacité annoncée';
+        });
+        if (capaField) {
+            capaAnnonceVal = getVal(row, capaField.colIndex);
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+
+        schema.forEach(field => {
+            // Logic: Skip if Optional
+            const cell = row.getCell(field.colIndex);
+            // Use our helper from render but we need to externalize it or duplicate logic slightly
+            // Checking style directly here
+            let isOptional = false;
+            if (cell && cell.style && cell.style.fill) {
+                const f = cell.style.fill;
+                if (f.type === 'pattern' && f.pattern && f.pattern !== 'none' && f.pattern !== 'solid') isOptional = true;
+            }
+            if (isOptional) return; // Do not fill optional fields
+
+            // Skip if value already exists (don't overwrite user data? User said "Remplir par defaut", implies filling empty ones or all? "Remplir par défaut" usually means fill empty. I'll stick to filling ONLY if empty to be safe, except specifically requested logic might imply otherwise. User didn't specify "only empty", but it's safer.)
+            // Actually, for "Capacité réelle meme que celle anoncee", if it's 0 or empty we fill it.
+            const currentVal = getVal(row, field.colIndex);
+            if (currentVal && currentVal.toString().trim() !== '') return;
+
+            // Apply Rules
+            const qNorm = (field.question || '').toLowerCase();
+
+            // Capacité Réelle
+            if ((field.category || '').toLowerCase().includes('capacité réelle') || qNorm.includes('réellement fonctionnelles')) {
+                if (capaAnnonceVal) {
+                    updateCell(field.colIndex, capaAnnonceVal);
+                    editsMade++;
+                }
+            }
+            // Date de passage
+            else if (field.type === 'date' || qNorm.includes('date de passage')) {
+                updateCell(field.colIndex, today);
+                editsMade++;
+            }
+            // O/N -> O (Exception: Humidité)
+            else if (field.type === 'o/n') {
+                if (qNorm.includes('humidit') || qNorm.includes('infiltration')) {
+                    updateCell(field.colIndex, 'n'); // Default Non
+                } else {
+                    updateCell(field.colIndex, 'o'); // Default Oui
+                }
+                editsMade++;
+            }
+            // V/F -> V
+            else if (field.type === 'v/f') {
+                updateCell(field.colIndex, 'v');
+                editsMade++;
+            }
+        });
+
+        if (editsMade > 0) {
+            renderForm(currentRowIndex); // Refresh UI
+            // alert(`${editsMade} champs remplis par défaut.`);
+        }
+    });
+
+    // 3. Next Field Navigation
+    const nextFieldBtn = document.getElementById('next-field-btn');
+
+    // Show/Hide FAB based on view
+    const observer = new MutationObserver(() => {
+        if (!splitView.classList.contains('hidden')) {
+            nextFieldBtn.classList.remove('hidden');
+        } else {
+            nextFieldBtn.classList.add('hidden');
+        }
+    });
+    observer.observe(splitView, { attributes: true });
+
+    // Track last focused input for Navigation Logic
+    let lastFocusedInput = null;
+    formContainer.addEventListener('focusin', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            lastFocusedInput = e.target;
+        }
+    });
+
+    nextFieldBtn.addEventListener('click', () => {
+        // Find all inputs in form
+        const inputs = Array.from(formContainer.querySelectorAll('input:not(:disabled), textarea:not(:disabled)'));
+
+        let startIdx = 0;
+        const current = lastFocusedInput;
+        const currentIdx = inputs.indexOf(current);
+
+        if (currentIdx !== -1) {
+            startIdx = currentIdx + 1;
+
+            // Optimization: If current was a radio, skip all siblings of the same name immediately
+            if (current.type === 'radio') {
+                const name = current.name;
+                while (startIdx < inputs.length && inputs[startIdx].name === name) {
+                    startIdx++;
+                }
+            }
+        }
+
+        // Search from startIdx to end, then 0 to startIdx (Wrap around)
+        let found = null;
+
+        // Helper to check if input is valid target
+        const isTarget = (input) => {
+            // Skip optional fields
+            const group = input.closest('.field-group');
+            if (group) {
+                const badge = group.querySelector('.badge-optional');
+                if (badge) return false;
+            }
+
+            // Check if empty
+            if (input.type === 'radio') {
+                const name = input.name;
+                const groupRadios = formContainer.querySelectorAll(`input[name="${name}"]`);
+                let isChecked = false;
+                groupRadios.forEach(r => { if (r.checked) isChecked = true; });
+                return !isChecked;
+            } else {
+                return !input.value;
+            }
+        };
+
+        // Forward Pass
+        for (let i = startIdx; i < inputs.length; i++) {
+            if (isTarget(inputs[i])) {
+                found = inputs[i];
+                // If found radio, we should skip checking other radios of same group in this pass? 
+                // No need, we break immediately. 
+                break;
+            }
+            // If we didn't match (e.g. checked radio), we should probably skip the rest of this group
+            // to save iterations, but not strictly necessary for correctness.
+            // Actually, if inputs[i] is radio and NOT target (checked), subsequent siblings are also NOT target.
+            if (inputs[i].type === 'radio') {
+                const name = inputs[i].name;
+                while (i + 1 < inputs.length && inputs[i + 1].name === name) {
+                    i++;
+                }
+            }
+        }
+
+        // Wrap around Pass (if not found yet and we didn't start at 0)
+        if (!found && startIdx > 0) {
+            for (let i = 0; i < startIdx; i++) {
+                if (isTarget(inputs[i])) {
+                    found = inputs[i];
+                    break;
+                }
+                if (inputs[i].type === 'radio') {
+                    const name = inputs[i].name;
+                    while (i + 1 < startIdx && inputs[i + 1].name === name) {
+                        i++;
+                    }
+                }
+            }
+        }
+
+        if (found) {
+            found.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            found.focus();
+        } else {
+            alert("Tous les champs obligatoires semblent remplis !");
+        }
     });
 
     // Init Persistence

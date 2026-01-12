@@ -338,6 +338,18 @@ body {
     line-height: 1.6;
 }
 
+.badge-optional {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    font-style: italic;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 /* Inputs */
 input[type="text"],
 input[type="number"],
@@ -373,6 +385,26 @@ input[type="number"] {
 input[type="date"] {
     width: auto;
     min-width: 150px;
+}
+
+/* Disabled/Read-Only Styling */
+.input-disabled,
+input:disabled,
+textarea:disabled {
+    opacity: 0.7;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: not-allowed;
+    border-color: transparent;
+    color: var(--text-secondary);
+}
+
+.disabled-group .radio-option {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disabled-group input {
+    cursor: not-allowed;
 }
 
 /* Custom Radios for O/N and V/F and G/M/F */
@@ -484,4 +516,48 @@ input[type="date"] {
     to {
         opacity: 1;
     }
+}
+
+.badge-test-required {
+    color: #ef4444;
+    /* Red-500 */
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 0.5rem;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.editor-actions {
+    display: flex;
+    align-items: center;
+}
+
+/* FAB */
+.fab-btn {
+    position: fixed;
+    bottom: 30px;
+    /* Above footer or just in corner */
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+}
+
+.fab-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }

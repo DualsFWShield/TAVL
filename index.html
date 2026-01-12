@@ -54,12 +54,26 @@
                 <section class="editor-panel">
                     <div class="editor-header">
                         <h2 id="current-auditoire-title">Sélectionnez un auditoire</h2>
-                        <button id="clear-btn" class="secondary-btn">Fermer</button>
+                        <div class="editor-actions">
+                            <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut" style="margin-right: 0.5rem;">
+                                Remplir
+                            </button>
+                            <button id="unlock-btn" class="secondary-btn" title="Mode Édition Forcée">
+                                🔓
+                            </button>
+                            <button id="clear-btn" class="secondary-btn" style="margin-left: 0.5rem;">Fermer</button>
+                        </div>
                     </div>
                     <div id="form-container" class="form-container">
                         <!-- Dynamic Content will be injected here -->
                         <div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>
                     </div>
+                </section>
+                
+                <!-- Floating Action Button -->
+                <button id="next-field-btn" class="fab-btn hidden" title="Champ suivant">
+                    ⬇
+                </button>
                 </section>
             </div>
         </main>
