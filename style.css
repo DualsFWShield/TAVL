@@ -100,6 +100,48 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Action Buttons */
+.action-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    font-family: var(--font-family);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.action-btn.primary {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px var(--primary-glow);
+    font-weight: 600;
+}
+
+.action-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px var(--primary-glow);
+    filter: brightness(1.1);
+}
+
+.action-btn.secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    opacity: 0.6;
+}
+
+.action-btn.secondary:hover {
+    opacity: 1;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
 /* Upload Section */
 .upload-container {
     flex: 1;
