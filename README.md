@@ -67,8 +67,8 @@ Certain features rely on specific keywords in **Row 3 (Category)** or **Row 4 (Q
 
 | Feature | Trigger Keywords (in Category or Question) | Effect |
 | :--- | :--- | :--- |
-| **Identity** | `Auditoire`, `Auditoires` | Identifies the column used for the sidebar list. |
-| **Read-Only** | `Bâtiment`, `Auditoire`, `Capacité annoncée` | Locks the field. |
+| **Identity** | `Auditoires` | Identifies the column used for the sidebar list. |
+| **Read-Only** | `Bâtiment`, `Auditoires`, `Capacité annoncée` | Locks the field. |
 | **Magic Fill** | `Capacité réelle`, `Réellement fonctionnelles` | Copies value from "Capacité annoncée". |
 | **Magic Fill** | `Date de passage` | Fills with Today's date. |
 | **Magic Fill** | `Humidité`, `Infiltration` | Defaults to "Non" (N) instead of "Oui". |
@@ -83,7 +83,7 @@ Certain features rely on specific keywords in **Row 3 (Category)** or **Row 4 (Q
 
 ### Unsafe Modifications (What breaks the tool)
 - ❌ **Moving Header Rows**: Rows 3, 4, 5 **MUST** remain the header rows. Do not insert rows above them.
-- ❌ **Deleting Identity Column**: One column must have "Auditoire" in the header to generate the list.
+- ❌ **Deleting Identity Column**: One column must have "Auditoires" in the header to generate the list.
 
 ## Technologies
 
