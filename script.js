@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             check.innerHTML = '✔';
 
             const name = item.name.toLowerCase();
-            const threshold = name.includes('hall') ? 40 : 60;
+            const threshold = name.includes('hall, sanitaire') ? 40 : 60;
 
             // Initial Calculation
             const percentage = calculateCompletion(item.rowIndex);
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (li) {
             const rowData = dataRows.find(r => r.rowIndex === rowIndex);
             const name = rowData ? rowData.name.toLowerCase() : '';
-            const threshold = name.includes('hall') ? 40 : 60;
+            const threshold = name.includes('hall, sanitaire') ? 40 : 60;
 
             const percentage = calculateCompletion(rowIndex);
             const check = li.querySelector('.status-indicator');

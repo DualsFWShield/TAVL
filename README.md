@@ -42,32 +42,33 @@ Outil web pour importer, éditer et exporter des fichiers de relevés Excel.
   - Recherche filtrée en temps réel en haut du formulaire.
   - Filtre instantanément les questions et catégories visibles basés sur des mots-clés.
 - **Suivi de Progression** :
-  - **Indicateurs Latéraux** : Une coche verte (✔) apparaît automatiquement pour les Auditoires complétés à plus de 60%.
+  - **Indicateurs Latéraux** : Une coche verte (✔) apparaît automatiquement pour les Auditoires complétés à plus de 60% et pour les hall complétés à plus de 40%.
 - **Badges & Validation** :
-  - **(Facultatif)** : Les champs optionnels (détectés via des cellules Excel grises/hachurées) sont clairement marqués.
+  - **(Non-Applicable)** : Les champs optionnels (détectés via des cellules Excel grises/hachurées) sont clairement marqués.
   - **Non-Accessible Manuellement** : Possibilité de désactiver/griser une cellule spécifique via la case à cocher. À l'export, la cellule prendra le motif hachuré standard.
   - **Test Manuel Requis** : Remplace les libellés "(testé)" par un badge rouge clair.
   - **Dates Propres** : Les dates sont exportées en texte (`dd/mm/yyyy`) pour assurer une compatibilité parfaite avec Excel sans erreur de fuseau horaire.
 
 ## Guide Utilisateur
 
-1. **Ouvrir** : Lancez `index.html` dans un navigateur moderne (Chrome, Edge).
+1. **Ouvrir** : Lancez `index.html` ou [le site web](https://dualsfwshield.github.io/TAVL/) dans un navigateur moderne (Chrome, Edge, Firefox, Opera, ...).
 2. **Importer** : Glissez-déposez votre fichier `.xlsx` (ex: `Barbe.xlsx`).
 
    <img src="showcase/desktop-drop.png" width="45%" /> <img src="showcase/mobile-drop.png" width="20%" />
-3. **Naviguer** : Cliquez sur un nom d'Auditoire dans la barre latérale.
+3. **Naviguer** : Cliquez sur un nom d'Auditoire ou de hall dans la barre latérale.
 4. **Éditer** :
 
-   - Naviguez avec Tab ou utilisez le **Bouton ⬇** pour sauter à la prochaine tâche vide.
-   - Utilisez **⚡ Remplir** pour pré-remplir les valeurs standards "Tout est bon" pour une salle.
+   - Naviguez avec la souris, en scrollant, avec Tab ou utilisez le **Bouton ⬇** pour sauter à la prochaine tâche vide.
+   - Utilisez **⚡ Remplir** pour pré-remplir les valeurs standards "Tout est bon" pour une salle en laissant les questions nécessitant une vérification au cas par cas à compléter (Numéro du local de stockage, nombre d'heures de projections, ...).
    - Si une erreur structurelle existe dans la source, utilisez **🔓 Déverrouiller** pour la corriger.
+   - Si une question doit être grisée ou dégrisée, cochez ou décochez la checkbox à côté de la question concernée.
 
    ![Interface Mobile](showcase/mobile-edit.png)
 5. **Exporter** : Cliquez sur **"Exporter le relevé"** pour télécharger le fichier complété.
 
 ## Structure Excel & Contraintes
 
-L'outil repose sur une structure "Matrice" spécifique dans le fichier Excel.
+L'outil repose sur une structure standardisée spécifique dans le fichier Excel ce qui implique quelques restrictions et règles dont il faut tenir compte pour une éventuelle mise à jour du fichier excel importé. Celles-ci sont listées ci-dessous.
 
 ### Lignes Critiques (Positions Fixes)
 
@@ -88,18 +89,20 @@ L'outil repose sur une structure "Matrice" spécifique dans le fichier Excel.
 
 Certaines fonctionnalités reposent sur des mots-clés spécifiques dans la **Ligne 3 (Catégorie)** ou la **Ligne 4 (Question)**. Ces règles sont **Sensibles aux Mots-clés** (correspondance partielle, insensible à la casse).
 
-| Fonctionnalité               | Mots-clés Déencheurs (dans Catégorie ou Question)   | Effet                                                   |
-| :---------------------------- | :----------------------------------------------------- | :------------------------------------------------------ |
-| **Identité**           | `Auditoires`                                         | Identifie la colonne utilisée pour la liste latérale. |
-| **Lecture Seule**       | `Bâtiment`, `Auditoires`, `Capacité annoncée` | Verrouille le champ.                                    |
-| **Remplissage Magique** | `Capacité réelle`, `Réellement fonctionnelles`  | Copie la valeur de "Capacité annoncée".               |
-| **Remplissage Magique** | `Date de passage`                                    | Remplit avec la date d'Aujourd'hui.                     |
-| **Remplissage Magique** | `Humidité`, `Infiltration`                        | Définit par défaut "Non" (N) au lieu de "Oui".        |
-| **GMF**                 | `Gradin` + `Mobile`                                | Force le type radio GMF si non spécifié.              |
+| Fonctionnalité                   | Mots-clés Déclencheurs (dans Catégorie ou Question) | Effet                                                   |
+| :-------------------------------- | :----------------------------------------------------- | :------------------------------------------------------ |
+| **Identité**               | `Auditoires`                                         | Identifie la colonne utilisée pour la liste latérale. |
+| **Lecture Seule**           | `Bâtiment`, `Auditoires`, `Capacité annoncée` | Verrouille le champ.                                    |
+| **Remplissage Magique**     | `Capacité réelle`, `Réellement fonctionnelles`  | Copie la valeur de "Capacité annoncée".               |
+| **Remplissage Magique**     | `Date de passage`                                    | Remplit avec la date d'Aujourd'hui.                     |
+| **Remplissage Magique**     | `Humidité`, `Infiltration`                        | Définit par défaut "Non" (N) au lieu de "Oui".        |
+| **GMF**                     | `Gradin` + `Mobile`                                | Force le type radio GMF si non spécifié.              |
+| **Seuil Hall et Sanitaire** | `Hall` + `Sanitaire` (dans le nom de l'auditoire)      | Réduit le seuil de complétion requis à 40%.          |
 
 ### Modifications Sûres (Ce que vous pouvez changer dans Excel)
 
-- ✅ **Ajouter des Colonnes** : Vous pouvez ajouter de nouvelles colonnes n'importe où si elles ont des en-têtes dans les lignes 3, 4, 5.
+- ✅ **Ajouter ou supprimer certaines Colonnes** : Vous pouvez ajouter de nouvelles colonnes n'importe où si elles ont des en-têtes dans les lignes 3, 4, 5.
+- ✅ **Ajouter ou supprimer certaines** **Lignes** : Vous pouvez ajouter et supprimer autant de lignes d'auditoires que nécessaire tant que les lignes 3, 4 et 5 sont intactes.
 - ✅ **Renommer les En-têtes** : Vous pouvez renommer la plupart des en-têtes, **SAUF** ceux contenant les mots-clés listés ci-dessus si vous voulez garder la logique spéciale qui leur est attachée.
 - ✅ **Changer les Couleurs** :
   - **Remplissage Motif/Hachures** : Toute cellule avec un remplissage à motif (points, lignes) sera détectée comme **Facultatif**.
