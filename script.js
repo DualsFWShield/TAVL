@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextFieldBtn = document.getElementById('next-field-btn');
     const unlockBtn = document.getElementById('unlock-btn');
     const fillDefaultsBtn = document.getElementById('fill-defaults-btn');
+    const searchInput = document.getElementById('search-input');
+    const searchContainer = document.getElementById('search-container');
 
     /* ==========================================================================
        STATE & VARIABLES
@@ -268,10 +270,57 @@ document.addEventListener('DOMContentLoaded', () => {
         dataRows.forEach((item, index) => {
             const li = document.createElement('li');
             li.className = 'sidebar-item';
-            li.textContent = item.name;
+            li.dataset.rowIndex = item.rowIndex; // Store for easy access
+
+            const spanName = document.createElement('span');
+            spanName.textContent = item.name;
+            li.appendChild(spanName);
+
+            const check = document.createElement('span');
+            check.className = 'status-indicator';
+            check.innerHTML = '✔';
+
+            // Initial Calculation
+            const percentage = calculateCompletion(item.rowIndex);
+            if (percentage >= 60) check.classList.add('visible');
+
+            li.appendChild(check);
+
             li.onclick = () => selectAuditoire(index);
             auditoireList.appendChild(li);
         });
+    }
+
+    function calculateCompletion(rowIndex) {
+        if (!mainWorksheet) return 0;
+        const row = mainWorksheet.getRow(rowIndex);
+        let total = 0;
+        let filled = 0;
+
+        schema.forEach(field => {
+            // Exclude purely structural/read-only fields from the count if desired, 
+            // but user asked for "70% des questions". 
+            // We generally count everything that is a question.
+            if (!field.question) return;
+
+            total++;
+            const val = getVal(row, field.colIndex);
+            if (val && val.toString().trim() !== '') {
+                filled++;
+            }
+        });
+
+        return total === 0 ? 0 : (filled / total) * 100;
+    }
+
+    function updateSidebarStatus(rowIndex) {
+        const li = Array.from(auditoireList.children).find(el => parseInt(el.dataset.rowIndex) === rowIndex);
+        if (li) {
+            const percentage = calculateCompletion(rowIndex);
+            const check = li.querySelector('.status-indicator');
+            if (percentage >= 60) check.classList.add('visible');
+            else check.classList.remove('visible');
+        }
     }
 
     function selectAuditoire(index) {
@@ -283,6 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentAuditoireTitle.textContent = item.name;
 
         renderForm(item.rowIndex);
+        // Clear search on switch
+        searchInput.value = '';
+        if (searchContainer) searchContainer.style.display = 'block'; // Ensure visible when auditoire selected
     }
 
     function renderForm(rowIndex) {
@@ -492,6 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Removed numFmt assignment since we are now using explicit string
 
         saveEditToDB(currentRowIndex, colIndex, value);
+        updateSidebarStatus(currentRowIndex);
     }
 
     /* ==========================================================================
@@ -600,7 +653,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (editsMade > 0) {
             renderForm(currentRowIndex);
+            updateSidebarStatus(currentRowIndex);
         }
+    });
+
+    // Search Logic
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+
+        const categories = document.querySelectorAll('.form-category');
+        categories.forEach(cat => {
+            let hasVisible = false;
+            const fields = cat.querySelectorAll('.field-group');
+
+            fields.forEach(field => {
+                const text = field.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    field.classList.remove('hidden');
+                    hasVisible = true;
+                } else {
+                    field.classList.add('hidden');
+                }
+            });
+
+            if (hasVisible) cat.classList.remove('hidden');
+            else cat.classList.add('hidden');
+        });
     });
 
     // 3. Smart Navigation

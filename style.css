@@ -274,11 +274,40 @@ body {
     align-items: center;
     background: rgba(27, 30, 43, 0.95);
     flex-shrink: 0;
+    flex-wrap: wrap;
+    /* Allow wrapping on small screens */
+    gap: 1rem;
 }
 
 .editor-header h2 {
     font-size: 1.1rem;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Responsiveness for Header */
+@media (max-width: 600px) {
+    .editor-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem;
+    }
+
+    .editor-header h2 {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Target the inline style search container via specificity or JS, 
+       but here we rely on the fact that flex items will stack with column direction */
+
+    .editor-actions {
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 0.5rem;
+    }
 }
 
 /* Styled Close Button */
@@ -560,4 +589,35 @@ textarea:disabled {
 .fab-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Sidebar Progress Indicator */
+.sidebar-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-indicator {
+    display: none;
+    width: 20px;
+    height: 20px;
+    background: var(--success-color);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #fff;
+    margin-left: 10px;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.status-indicator.visible {
+    display: flex;
+}
+
+/* Search Input Focus State */
+#search-input:focus {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-color: var(--primary-color) !important;
 }

@@ -53,8 +53,19 @@
                 <section class="editor-panel">
                     <div class="editor-header">
                         <h2 id="current-auditoire-title">Sélectionnez un auditoire</h2>
+
+                        <div class="search-container"
+                            style="display: none; flex: 1; max-width: 300px; margin: 0 1rem; position: relative;"
+                            id="search-container">
+                            <input type="text" id="search-input" placeholder="Rechercher"
+                                style="width: 100%; padding-left: 2.2rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: white; border-radius: 20px;">
+                            <span
+                                style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
+                        </div>
+
                         <div class="editor-actions">
-                            <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut" style="margin-right: 0.5rem;">
+                            <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut"
+                                style="margin-right: 0.5rem;">
                                 Remplir
                             </button>
                             <button id="unlock-btn" class="secondary-btn" title="Mode Édition Forcée">
@@ -68,7 +79,7 @@
                         <div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>
                     </div>
                 </section>
-                
+
                 <!-- Floating Action Button -->
                 <button id="next-field-btn" class="fab-btn hidden" title="Champ suivant">
                     ⬇
