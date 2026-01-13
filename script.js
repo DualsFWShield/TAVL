@@ -347,9 +347,12 @@ document.addEventListener('DOMContentLoaded', () => {
             check.className = 'status-indicator';
             check.innerHTML = '✔';
 
+            const name = item.name.toLowerCase();
+            const threshold = name.includes('hall') ? 40 : 60;
+
             // Initial Calculation
             const percentage = calculateCompletion(item.rowIndex);
-            if (percentage >= 60) check.classList.add('visible');
+            if (percentage >= threshold) check.classList.add('visible');
 
             li.appendChild(check);
 
@@ -365,10 +368,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let filled = 0;
 
         schema.forEach(field => {
-            // Exclude purely structural/read-only fields from the count if desired, 
-            // but user asked for "70% des questions". 
-            // We generally count everything that is a question.
             if (!field.question) return;
+
+            const cell = row.getCell(field.colIndex);
+
+            // Check for Pattern Fill (Optional Detection) OR Manual Grey
+            // We reuse the logic: if it has a pattern that is NOT 'none' or 'solid', it is exempted.
+            // This covers both 'mediumGray' (original optional) and 'darkGray' (manual toggle)
+            let isExempt = false;
+            if (cell && cell.style && cell.style.fill) {
+                const f = cell.style.fill;
+                if (f.type === 'pattern' && f.pattern && f.pattern !== 'none' && f.pattern !== 'solid') {
+                    isExempt = true;
+                }
+            }
+
+            if (isExempt) return; // Don't count this question
 
             total++;
             const val = getVal(row, field.colIndex);
@@ -383,9 +398,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSidebarStatus(rowIndex) {
         const li = Array.from(auditoireList.children).find(el => parseInt(el.dataset.rowIndex) === rowIndex);
         if (li) {
+            const rowData = dataRows.find(r => r.rowIndex === rowIndex);
+            const name = rowData ? rowData.name.toLowerCase() : '';
+            const threshold = name.includes('hall') ? 40 : 60;
+
             const percentage = calculateCompletion(rowIndex);
             const check = li.querySelector('.status-indicator');
-            if (percentage >= 60) check.classList.add('visible');
+            if (percentage >= threshold) check.classList.add('visible');
             else check.classList.remove('visible');
         }
     }

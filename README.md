@@ -45,6 +45,7 @@ Outil web pour importer, éditer et exporter des fichiers de relevés Excel.
   - **Indicateurs Latéraux** : Une coche verte (✔) apparaît automatiquement pour les Auditoires complétés à plus de 60%.
 - **Badges & Validation** :
   - **(Facultatif)** : Les champs optionnels (détectés via des cellules Excel grises/hachurées) sont clairement marqués.
+  - **Non-Accessible Manuellement** : Possibilité de désactiver/griser une cellule spécifique via la case à cocher. À l'export, la cellule prendra le motif hachuré standard.
   - **Test Manuel Requis** : Remplace les libellés "(testé)" par un badge rouge clair.
   - **Dates Propres** : Les dates sont exportées en texte (`dd/mm/yyyy`) pour assurer une compatibilité parfaite avec Excel sans erreur de fuseau horaire.
 
