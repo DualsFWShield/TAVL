@@ -28,10 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Keywords used to identify special columns or behaviors (Case Insensitive)
         KEYWORDS: {
-            IDENTITY_COL: ['auditoire', 'auditoires'], // To find the sidebar name column
+            IDENTITY_COL: ['auditoires'], // To find the sidebar name column
             READ_ONLY: [
                 'bâtiment', 'batiment',
-                'auditoire', 'auditoires', // Strict Check logic is applied in code
+                'auditoires', // Strict Check logic is applied in code
                 'capacité annoncée',
                 'gradin' // Part of GMF logic
             ],
@@ -560,7 +560,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Logic: Date
             else if (field.type === CONFIG.TYPES.DATE || qNorm.includes(CONFIG.AUTO_FILL.DATE_TARGET)) {
-                updateCell(field.colIndex, new Date());
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                updateCell(field.colIndex, today);
                 editsMade++;
             }
             // Logic: O/N (Default Oui, except negatives)
