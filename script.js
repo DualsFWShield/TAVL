@@ -194,6 +194,12 @@ document.addEventListener('DOMContentLoaded', () => {
             parseMatrixStructure(mainWorksheet);
             renderSidebar();
 
+            // Reset Form View
+            formContainer.innerHTML = '<div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>';
+            currentAuditoireTitle.textContent = 'Sélectionnez un auditoire';
+            currentRowIndex = null;
+            if (searchContainer) searchContainer.style.display = 'none';
+
             uploadSection.classList.add('hidden');
             splitView.classList.remove('hidden');
 
