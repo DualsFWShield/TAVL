@@ -654,3 +654,36 @@ textarea:disabled {
     background: rgba(0, 0, 0, 0.4) !important;
     border-color: var(--primary-color) !important;
 }
+
+/* Grey Toggle Checkbox */
+.grey-toggle-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--text-secondary);
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.grey-toggle-checkbox:hover {
+    opacity: 1;
+}
+
+.grey-toggle-checkbox:checked {
+    accent-color: var(--text-primary);
+    opacity: 1;
+}
+
+/* Disabled Field Group */
+.disabled-group {
+    opacity: 0.5;
+    pointer-events: none;
+    /* Prevent interaction with inputs */
+    filter: grayscale(100%);
+}
+
+/* Allow interaction with the toggle even if group is disabled */
+.disabled-group .grey-toggle-checkbox {
+    pointer-events: auto;
+    filter: none;
+}

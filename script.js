@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'capacité annoncée',
                 'gradin' // Part of GMF logic
             ],
-            OPTIONAL_BADGE_TEXT: 'Facultatif'
+            OPTIONAL_BADGE_TEXT: 'Non-Applicable'
         },
 
         // Magic Fill Logic Configuration
@@ -55,6 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
             NUMBER: 'nombre',
             GMF: 'gmf', // Gradin/Mobile/Fixe
             TEXT: 'text'
+        },
+
+        // Excel Styles
+        STYLES: {
+            GREY_PATTERN: {
+                fill: {
+                    type: 'pattern',
+                    pattern: 'darkGray',
+                    fgColor: { argb: 'FF000000' },
+                    bgColor: { argb: 'FFFFFFFF' }
+                }
+            }
         }
     };
 
@@ -153,11 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tx.objectStore(CONFIG.DB.STORE_FILE).put({ buffer: fileBuffer, name: fileName }, 'current');
     }
 
-    async function saveEditToDB(row, col, val) {
+    async function saveEditToDB(row, col, val, isGreyed = false) {
         if (!db) return;
         const tx = db.transaction([CONFIG.DB.STORE_EDITS], 'readwrite');
         const id = `${row}-${col}`;
-        tx.objectStore(CONFIG.DB.STORE_EDITS).put({ id, row, col, val });
+        tx.objectStore(CONFIG.DB.STORE_EDITS).put({ id, row, col, val, isGreyed });
     }
 
     async function clearDB() {
@@ -185,10 +197,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     cursorReq.onsuccess = (e) => {
                         const cursor = e.target.result;
                         if (cursor) {
-                            const { row, col, val } = cursor.value;
+                            const { row, col, val, isGreyed } = cursor.value;
                             const r = mainWorksheet.getRow(row);
                             const c = r.getCell(col);
                             c.value = val;
+
+                            // Restore Styling
+                            if (isGreyed) {
+                                c.style = {
+                                    ...c.style,
+                                    fill: CONFIG.STYLES.GREY_PATTERN.fill
+                                };
+                            }
+
                             cursor.continue();
                         } else {
                             console.log('Session restored');
@@ -445,7 +466,36 @@ document.addEventListener('DOMContentLoaded', () => {
                     label.appendChild(badgeTest);
                 }
 
-                group.appendChild(label);
+                // --- Grey Out Toggle (Manual N/A) ---
+                const headerWrapper = document.createElement('div');
+                headerWrapper.style.display = 'flex';
+                headerWrapper.style.justifyContent = 'space-between';
+                headerWrapper.style.alignItems = 'center';
+
+                headerWrapper.appendChild(label);
+
+                const greyToggle = document.createElement('input');
+                greyToggle.type = 'checkbox';
+                greyToggle.title = 'Marquer comme non-accessible (grisé)';
+                greyToggle.className = 'grey-toggle-checkbox';
+
+                // Check if currently greyed (Model or Style)
+                const isCurrentlyGrey = (c) => {
+                    if (!c || !c.style || !c.style.fill) return false;
+                    const f = c.style.fill;
+                    return (f.type === 'pattern' && f.pattern === 'darkGray');
+                };
+
+                if (isCurrentlyGrey(cell)) {
+                    greyToggle.checked = true;
+                }
+
+                greyToggle.onchange = (e) => {
+                    toggleCellGrey(field.colIndex, e.target.checked, group);
+                };
+
+                headerWrapper.appendChild(greyToggle);
+                group.appendChild(headerWrapper); // Insert wrapper containing label and toggle
 
                 // --- Read-Only Logic ---
                 const catNorm = (field.category || '').toLowerCase().trim();
@@ -833,6 +883,43 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Tous les champs obligatoires semblent remplis !");
         }
     });
+
+    function toggleCellGrey(colIndex, isGreyed, groupElement) {
+        if (!mainWorksheet || currentRowIndex === null) return;
+        const row = mainWorksheet.getRow(currentRowIndex);
+        const cell = row.getCell(colIndex);
+
+        if (isGreyed) {
+            cell.style = {
+                ...cell.style,
+                fill: CONFIG.STYLES.GREY_PATTERN.fill
+            };
+            groupElement.classList.add('disabled-group');
+            // Disable inputs within this group
+            const inputs = groupElement.querySelectorAll('input:not(.grey-toggle-checkbox), textarea, select');
+            inputs.forEach(input => input.disabled = true);
+        } else {
+            // Revert style (basic clear of fill, or reset to none if we knew prev)
+            // For now, setting fill to undefined or specifically type 'none'
+            // We need to keep other styles (border, font), so spreading is good.
+            const newStyle = { ...cell.style };
+            delete newStyle.fill;
+            cell.style = newStyle;
+
+            groupElement.classList.remove('disabled-group');
+            const inputs = groupElement.querySelectorAll('input:not(.grey-toggle-checkbox), textarea, select');
+            inputs.forEach(input => input.disabled = false);
+        }
+
+        // Save metadata change to DB
+        // We persist the 'isGreyed' boolean. The actual pattern logic is re-applied on render currently?
+        // No, render checks cell style. So updating cell object in memory is enough for immediate export.
+        // But for persistence across reload, we need to save this fact.
+        saveEditToDB(currentRowIndex, colIndex, cell.value, isGreyed);
+
+        // Also update completion status
+        updateSidebarStatus(currentRowIndex);
+    }
 
     initDB();
 });
