@@ -11,6 +11,29 @@
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
     --sidebar-width: 320px;
     --footer-height: 80px;
+
+    /* Component specific vars for theming */
+    --input-bg: #14161f;
+    --header-bg: rgba(20, 22, 31, 0.9);
+    --panel-header-bg: rgba(27, 30, 43, 0.95);
+    --badge-bg: rgba(255, 255, 255, 0.1);
+    --logo-gradient: linear-gradient(90deg, #fff, #94a3b8);
+    --search-bg: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="light"] {
+    --bg-color: #f1f5f9;
+    --surface-color: #ffffff;
+    --surface-hover: #f8fafc;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #cbd5e1;
+    --input-bg: #ffffff;
+    --header-bg: rgba(255, 255, 255, 0.9);
+    --panel-header-bg: rgba(255, 255, 255, 0.95);
+    --badge-bg: rgba(0, 0, 0, 0.05);
+    --logo-gradient: linear-gradient(90deg, #1e293b, #475569);
+    --search-bg: rgba(0, 0, 0, 0.05);
 }
 
 * {
@@ -73,7 +96,7 @@ body {
 .logo h1 {
     font-size: 1.5rem;
     font-weight: 700;
-    background: linear-gradient(90deg, #fff, #94a3b8);
+    background: var(--logo-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -92,7 +115,7 @@ body {
 }
 
 .badge {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--badge-bg);
     padding: 0.25rem 0.75rem;
     border-radius: 20px;
     font-size: 0.75rem;
@@ -214,7 +237,7 @@ body {
 .sidebar-header {
     padding: 1rem;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(20, 22, 31, 0.9);
+    background: var(--header-bg);
 }
 
 .sidebar-header h3 {
@@ -272,7 +295,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(27, 30, 43, 0.95);
+    background: var(--panel-header-bg);
     flex-shrink: 0;
     flex-wrap: wrap;
     /* Allow wrapping on small screens */
@@ -384,15 +407,25 @@ input[type="text"],
 input[type="number"],
 input[type="date"],
 textarea {
-    background: #14161f;
+    background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0.8rem 1rem;
-    color: white;
+    color: var(--text-primary);
     font-family: inherit;
     font-size: 0.95rem;
     width: 100%;
     transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+/* Specialized Search Bar Styling */
+.search-input-themed {
+    width: 100%;
+    padding-left: 2.2rem !important;
+    background: var(--search-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 20px !important;
 }
 
 textarea {

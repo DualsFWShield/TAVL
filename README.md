@@ -1,104 +1,117 @@
-# TAVL Relevés Tool
+# Outil de Relevés TAVL
 
-![Main Interface](showcase/desktop-edit.png)
+![Interface Principale](showcase/desktop-edit.png)
 
-Web tool for importing, editing, and exporting survey XLSX files (Matrix structure).
+Outil web pour importer, éditer et exporter des fichiers de relevés Excel.
 
-## Features
+## Fonctionnalités
 
-### Core
-- **Excel Import**: Load `.xlsx` files (drag & drop). Automatic analysis of file structure (Categories, Questions, Data Types).
-- **Premium Interface**: Dark, modern UI optimized for readability.
-- **Dynamic Forms**: Input fields generated based on Excel headers:
-  - **Radio Buttons**: `v/f` (True/False) and `o/n` (Yes/No).
-  - **Tri-State Selectors**: `G/M/F` (Bleacher/Mobile/Fixed).
-  - **Date Pickers**: Calendar selection with standard format (`dd/mm/yyyy`).
-  - **Smart Inputs**: Number fields and auto-expanding text areas.
-- **Sidebar Navigation**: Dynamically generated list of "Auditoires" (Auditoriums).
-- **Auto-Save**: Changes are persisted locally (IndexedDB). Session restore available on reload.
-  
-  ![Session Restore](showcase/desktop-saved.png)
+### Principales
 
-- **Smart Export**: Exports to XLSX preserving **original formatting** (colors, fonts, borders).
+- **Import Excel** : Chargement de fichiers `.xlsx` (glisser-déposer). Analyse automatique de la structure du fichier (Catégories, Questions, Types de données).
+- **Interface Premium** : Interface sombre et moderne optimisée pour la lisibilité.
+- **Thème sombre/clair** : Possibilité de passer d'un thème clair à sombre avec détection automatique des préférence de l'utilisateur.
+- **Formulaires Dynamiques** : Champs de saisie générés basés sur les en-têtes Excel :
 
-### Advanced Tools
-- **Read-Only Protection**: Critical structural fields (Building, Auditorium, Announced Capacity) are locked by default to prevent accidental edits.
-- **Force Edit Mode (🔓)**: Unlock all fields temporarily via the lock icon in the header.
-- **Magic Fill (⚡)**: Automate filling of standard fields:
-  - Sets Date to "Today".
-  - Copies "Announced Capacity" to "Real Capacity" if empty.
-  - Sets 'Yes'/'True' for standard checks.
-  - **Smart Exception**: Sets 'No' for negative attributes like "Humidity" or "Water Infiltration".
-  - **Safety**: Skips standard Optional fields.
-- **Smart Navigation (⬇)**: customized Floating Action Button:
-  - Jumps to the **next empty mandatory field**.
-  - Starts searching *after* the currently focused field (cursor awareness).
-  - Wraps around to the start of the form.
-  - Skips sibling radio buttons for faster traversal.
-- **Badges & Validation**:
-  - **(Facultatif)**: Optional fields (detected via grey/patterned Excel cells) are clearly marked.
-  - **Test Manual Requis**: Replaces "(testé)" labels with a clear red badge.
+  - **Boutons Radio** : `v/f` (Vrai/Faux) et `o/n` (Oui/Non).
+  - **Sélecteurs Trois États** : `G/M/F` (Gradin/Mobile/Fixe).
+  - **Sélecteurs de Date** : Calendrier avec format standard (`dd/mm/yyyy`).
+  - **Entrées Intelligentes** : Champs numériques et zones de texte extensibles.
+- **Navigation Latérale** : Liste des "Auditoires" générée dynamiquement.
+- **Sauvegarde Automatique** : Les modifications sont persistantes localement (IndexedDB). Restauration de session disponible au rechargement.
 
-## User Guide
+  ![Restauration de Session](showcase/desktop-saved.png)
+- **Export Intelligent** : Exporte vers XLSX en préservant **le formatage original** (couleurs, polices, bordures).
 
-1. **Open**: Launch `index.html` in a modern browser (Chrome, Edge).
-2. **Import**: Drag & drop your `.xlsx` file (e.g., `Barbe.xlsx`).
-   
+### Outils Avancés
+
+- **Protection Lecture Seule** : Les champs structurels critiques (Bâtiment, Auditoire, Capacité annoncée) sont verrouillés par défaut pour éviter les modifications accidentelles.
+- **Mode Édition Forcée (🔓)** : Déverrouille temporairement tous les champs via l'icône de cadenas dans l'en-tête.
+- **Remplissage Magique (⚡)** : Automatise le remplissage des champs standards :
+  - Définit la Date sur "Aujourd'hui".
+  - Copie la "Capacité annoncée" vers "Capacité réelle" si vide.
+  - Définit 'Oui'/'Vrai' pour les vérifications standards.
+  - **Exception Intelligente** : Définit 'Non' pour les attributs négatifs comme "Humidité" ou "Infiltration".
+  - **Sécurité** : Ignore les champs facultatifs standards.
+- **Navigation Intelligente (⬇)** : Bouton d'action flottant personnalisé :
+  - Saute au **prochain champ obligatoire vide**.
+  - Commence la recherche *après* le champ actuellement focalisé.
+  - Revient au début du formulaire si nécessaire.
+  - Saute les boutons radio frères pour une traversée plus rapide.
+- **Recherche & Filtrage (🔍)** :
+  - Recherche filtrée en temps réel en haut du formulaire.
+  - Filtre instantanément les questions et catégories visibles basés sur des mots-clés.
+- **Suivi de Progression** :
+  - **Indicateurs Latéraux** : Une coche verte (✔) apparaît automatiquement pour les Auditoires complétés à plus de 60%.
+- **Badges & Validation** :
+  - **(Facultatif)** : Les champs optionnels (détectés via des cellules Excel grises/hachurées) sont clairement marqués.
+  - **Test Manuel Requis** : Remplace les libellés "(testé)" par un badge rouge clair.
+  - **Dates Propres** : Les dates sont exportées en texte (`dd/mm/yyyy`) pour assurer une compatibilité parfaite avec Excel sans erreur de fuseau horaire.
+
+## Guide Utilisateur
+
+1. **Ouvrir** : Lancez `index.html` dans un navigateur moderne (Chrome, Edge).
+2. **Importer** : Glissez-déposez votre fichier `.xlsx` (ex: `Barbe.xlsx`).
+
    <img src="showcase/desktop-drop.png" width="45%" /> <img src="showcase/mobile-drop.png" width="20%" />
+3. **Naviguer** : Cliquez sur un nom d'Auditoire dans la barre latérale.
+4. **Éditer** :
 
-3. **Navigate**: Click an Auditorium name in the sidebar.
-4. **Edit**:
-   - Tab through fields or use the **⬇ Button** to jump to the next empty task.
-   - Use **⚡ Fill** to pre-fill standard "All Good" values for a room.
-   - If a structural error exists in the source, use **🔓 Unlock** to fix it.
-   
-   ![Mobile Interface](showcase/mobile-edit.png)
+   - Naviguez avec Tab ou utilisez le **Bouton ⬇** pour sauter à la prochaine tâche vide.
+   - Utilisez **⚡ Remplir** pour pré-remplir les valeurs standards "Tout est bon" pour une salle.
+   - Si une erreur structurelle existe dans la source, utilisez **🔓 Déverrouiller** pour la corriger.
 
-5. **Export**: Click **"Exporter le relevé"** to download the completed file.
+   ![Interface Mobile](showcase/mobile-edit.png)
+5. **Exporter** : Cliquez sur **"Exporter le relevé"** pour télécharger le fichier complété.
 
-## Excel Structure & Constraints
+## Structure Excel & Contraintes
 
-The tool relies on a specific "Matrix" structure in the Excel file.
+L'outil repose sur une structure "Matrice" spécifique dans le fichier Excel.
 
-### Critical Rows (Fixed Positions)
-- **Row 3**: **Categories** (Primary Header, e.g., "Mobilier", "Sécurité").
-- **Row 4**: **Questions** (Secondary Header, e.g., "Nombre de places", "Extincteur présent ?").
-- **Row 5**: **Data Types** (Defines input type).
+### Lignes Critiques (Positions Fixes)
 
-### Supported Data Types (Row 5 - Case Insensitive)
-- `v/f` : True/False (Vrai/Faux)
-- `o/n` : Yes/No (Oui/Non)
-- `date` or `..date..` : Date picker
-- `nombre` : Numeric input
-- `gmf` : Gradin/Mobile/Fixe (Tri-state)
-- `text` (or empty) : Default text area
+- **Ligne 3** : **Catégories** (En-tête Principal, ex: "Mobilier", "Sécurité").
+- **Ligne 4** : **Questions** (En-tête Secondaire, ex: "Nombre de places", "Extincteur présent ?").
+- **Ligne 5** : **Types de Données** (Définit le type d'entrée).
 
-### Keywords & Logic Dependencies
-Certain features rely on specific keywords in **Row 3 (Category)** or **Row 4 (Question)**. These logic rules are **Keyword Sensitive** (partial match, case insensitive).
+### Types de Données Supportés (Ligne 5 - Insensible à la casse)
 
-| Feature | Trigger Keywords (in Category or Question) | Effect |
-| :--- | :--- | :--- |
-| **Identity** | `Auditoires` | Identifies the column used for the sidebar list. |
-| **Read-Only** | `Bâtiment`, `Auditoires`, `Capacité annoncée` | Locks the field. |
-| **Magic Fill** | `Capacité réelle`, `Réellement fonctionnelles` | Copies value from "Capacité annoncée". |
-| **Magic Fill** | `Date de passage` | Fills with Today's date. |
-| **Magic Fill** | `Humidité`, `Infiltration` | Defaults to "Non" (N) instead of "Oui". |
-| **GMF** | `Gradin` + `Mobile` | Forces GMF radio type if not specified. |
+- `v/f` : Vrai/Faux
+- `o/n` : Oui/Non
+- `date` ou `..date..` : Sélecteur de date
+- `nombre` : Entrée numérique
+- `gmf` : Gradin/Mobile/Fixe (Trois états)
+- `text` (ou vide) : Zone de texte par défaut
 
-### Safe Modifications (What you can change in Excel)
-- ✅ **Add Columns**: You can add new columns anywhere if they have headers in Rows 3, 4, 5.
-- ✅ **Rename Headers**: You can rename most headers, **EXCEPT** those containing the keywords listed above if you want to keep the special logic attached to them.
-- ✅ **Change Colors**:
-  - **Pattern/Hatch Fill**: Any cell with a pattern fill (dots, lines) will be detected as **Optional** (Facultatif).
-  - **Solid Colors**: Preserved on export but ignored by logic.
+### Mots-clés & Dépendances Logiques
 
-### Unsafe Modifications (What breaks the tool)
-- ❌ **Moving Header Rows**: Rows 3, 4, 5 **MUST** remain the header rows. Do not insert rows above them.
-- ❌ **Deleting Identity Column**: One column must have "Auditoires" in the header to generate the list.
+Certaines fonctionnalités reposent sur des mots-clés spécifiques dans la **Ligne 3 (Catégorie)** ou la **Ligne 4 (Question)**. Ces règles sont **Sensibles aux Mots-clés** (correspondance partielle, insensible à la casse).
+
+| Fonctionnalité               | Mots-clés Déencheurs (dans Catégorie ou Question)   | Effet                                                   |
+| :---------------------------- | :----------------------------------------------------- | :------------------------------------------------------ |
+| **Identité**           | `Auditoires`                                         | Identifie la colonne utilisée pour la liste latérale. |
+| **Lecture Seule**       | `Bâtiment`, `Auditoires`, `Capacité annoncée` | Verrouille le champ.                                    |
+| **Remplissage Magique** | `Capacité réelle`, `Réellement fonctionnelles`  | Copie la valeur de "Capacité annoncée".               |
+| **Remplissage Magique** | `Date de passage`                                    | Remplit avec la date d'Aujourd'hui.                     |
+| **Remplissage Magique** | `Humidité`, `Infiltration`                        | Définit par défaut "Non" (N) au lieu de "Oui".        |
+| **GMF**                 | `Gradin` + `Mobile`                                | Force le type radio GMF si non spécifié.              |
+
+### Modifications Sûres (Ce que vous pouvez changer dans Excel)
+
+- ✅ **Ajouter des Colonnes** : Vous pouvez ajouter de nouvelles colonnes n'importe où si elles ont des en-têtes dans les lignes 3, 4, 5.
+- ✅ **Renommer les En-têtes** : Vous pouvez renommer la plupart des en-têtes, **SAUF** ceux contenant les mots-clés listés ci-dessus si vous voulez garder la logique spéciale qui leur est attachée.
+- ✅ **Changer les Couleurs** :
+  - **Remplissage Motif/Hachures** : Toute cellule avec un remplissage à motif (points, lignes) sera détectée comme **Facultatif**.
+  - **Couleurs Unies** : Préservées à l'export mais ignorées par la logique.
+
+### Modifications Risquées (Ce qui casse l'outil)
+
+- ❌ **Déplacer les Lignes d'En-tête** : Les lignes 3, 4, 5 **DOIVENT** rester les lignes d'en-tête. N'insérez pas de lignes au-dessus.
+- ❌ **Supprimer la Colonne d'Identité** : Une colonne doit avoir "Auditoires" dans l'en-tête pour générer la liste.
 
 ## Technologies
 
 - **HTML5 / CSS3** (Vanilla)
 - **JavaScript** (ES6+)
-- **ExcelJS**: For high-fidelity Excel reading/writing.
-- **IndexedDB**: For local data persistence.
+- **ExcelJS** : Pour la lecture/écriture Excel haute fidélité.
+- **IndexedDB** : Pour la persistance locale des données.

@@ -75,6 +75,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const fillDefaultsBtn = document.getElementById('fill-defaults-btn');
     const searchInput = document.getElementById('search-input');
     const searchContainer = document.getElementById('search-container');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+
+    /* ==========================================================================
+       THEME MANAGEMENT
+       ========================================================================== */
+    function initTheme() {
+        const storedTheme = localStorage.getItem('theme');
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        let theme = 'dark';
+        if (storedTheme) {
+            theme = storedTheme;
+        } else if (!systemPrefersDark) {
+            theme = 'light';
+        }
+
+        applyTheme(theme);
+    }
+
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggleBtn.textContent = '🌙'; // Moon to switch back to dark
+            themeToggleBtn.title = 'Passer en mode sombre';
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            themeToggleBtn.textContent = '☀'; // Sun to switch to light
+            themeToggleBtn.title = 'Passer en mode clair';
+        }
+        localStorage.setItem('theme', theme);
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        applyTheme(newTheme);
+    });
+
+    // Initialize immediately
+    initTheme();
 
     /* ==========================================================================
        STATE & VARIABLES

@@ -21,7 +21,7 @@
                 <p>Analyse locale — Importez le fichier Excel pour commencer</p>
             </div>
             <div class="header-controls">
-                <button class="action-btn secondary" id="export-json-btn">JSON</button>
+                <button class="action-btn secondary" id="theme-toggle" title="Changer de thème">☀</button>
                 <button class="action-btn primary" id="export-xlsx-btn">
                     <span>Exporter le relevé</span>
                 </button>
@@ -57,10 +57,9 @@
                         <div class="search-container"
                             style="display: none; flex: 1; max-width: 300px; margin: 0 1rem; position: relative;"
                             id="search-container">
-                            <input type="text" id="search-input" placeholder="Rechercher"
-                                style="width: 100%; padding-left: 2.2rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: white; border-radius: 20px;">
+                            <input type="text" id="search-input" placeholder="Rechercher" class="search-input-themed">
                             <span
-                                style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
+                                style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); opacity: 0.5; color: var(--text-secondary);">🔍</span>
                         </div>
 
                         <div class="editor-actions">
