@@ -417,7 +417,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Parse Date Value
-                    if (val && !isNaN(Date.parse(val))) {
+                    // Parse Date Value
+                    if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+                        // Handle "dd/mm/yyyy" string format specifically
+                        const [d, m, y] = val.split('/');
+                        input.value = `${y}-${m}-${d}`;
+                    } else if (val && !isNaN(Date.parse(val))) {
                         const d = new Date(val);
                         if (!isNaN(d)) input.value = d.toISOString().split('T')[0];
                         else input.value = val;
@@ -429,8 +434,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     input.addEventListener('change', (e) => {
-                        const d = new Date(e.target.value);
-                        updateCell(field.colIndex, !isNaN(d) ? d : e.target.value);
+                        if (!e.target.value) {
+                            updateCell(field.colIndex, '');
+                            return;
+                        }
+                        // Construct Local Date strictly from input components to avoid timezone shifts
+                        const [y, m, d] = e.target.value.split('-').map(Number);
+                        const localDate = new Date(y, m - 1, d);
+                        updateCell(field.colIndex, localDate);
                     });
                     group.appendChild(input);
 
@@ -469,10 +480,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = mainWorksheet.getRow(currentRowIndex);
         const cell = row.getCell(colIndex);
 
-        cell.value = value;
+        // Force Date objects to strict "dd/mm/yyyy" string format
         if (value instanceof Date) {
-            cell.numFmt = CONFIG.AUTO_FILL.DEFAULT_DATE_FORMAT;
+            const day = String(value.getDate()).padStart(2, '0');
+            const month = String(value.getMonth() + 1).padStart(2, '0');
+            const year = value.getFullYear();
+            value = `${day}/${month}/${year}`;
         }
+
+        cell.value = value;
+        // Removed numFmt assignment since we are now using explicit string
 
         saveEditToDB(currentRowIndex, colIndex, value);
     }
