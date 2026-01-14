@@ -98,6 +98,7 @@ body {
     font-weight: 700;
     background: var(--logo-gradient);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -521,9 +522,7 @@ textarea:disabled {
     border-radius: 50%;
 }
 
-.radio-chip {
-    /* Legacy chip style removed, using simple label text */
-}
+
 
 /* Footer (Floating) */
 .app-footer {
