@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TAVL Tool</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0a0c13">
     
     <!-- iOS Support -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,14 +25,17 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <div class="logo">
-                <h1>Relevés TAVL</h1>
-                <p>Analyse locale — Importez le fichier Excel pour commencer</p>
+            <div class="header-left">
+                <button class="burger-btn hidden" id="burger-btn" title="Ouvrir la liste" aria-label="Menu">☰</button>
+                <div class="logo">
+                    <h1>Relevés TAVL</h1>
+                    <p>Analyse locale — Importez le fichier Excel pour commencer</p>
+                </div>
             </div>
             <div class="header-controls">
                 <button class="action-btn secondary" id="theme-toggle" title="Changer de thème">☀</button>
                 <button class="action-btn primary" id="export-xlsx-btn">
-                    <span>Exporter le relevé</span>
+                    <span>📥 Exporter</span>
                 </button>
             </div>
         </header>
@@ -64,37 +67,59 @@
                         <h2 id="current-auditoire-title">Sélectionnez un auditoire</h2>
 
                         <div class="search-container"
-                            style="display: none; flex: 1; max-width: 300px; margin: 0 1rem; position: relative;"
+                            style="display: none; flex: 1; max-width: 280px; margin: 0 0.75rem; position: relative;"
                             id="search-container">
                             <input type="text" id="search-input" placeholder="Rechercher" class="search-input-themed">
                             <span
-                                style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); opacity: 0.5; color: var(--text-secondary);">🔍</span>
+                                style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); opacity: 0.4; color: var(--text-muted); font-size: 0.85rem;">🔍</span>
                         </div>
 
                         <div class="editor-actions">
-                            <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut"
-                                style="margin-right: 0.5rem;">
-                                Remplir
+                            <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut">
+                                ⚡ Remplir
                             </button>
                             <button id="unlock-btn" class="secondary-btn" title="Mode Édition Forcée">
                                 🔓
                             </button>
-                            <button id="clear-btn" class="secondary-btn" style="margin-left: 0.5rem;">Fermer</button>
+                            <button id="clear-btn" class="secondary-btn">✕ Fermer</button>
                         </div>
                     </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-bar-container" id="progress-bar-container" style="display: none;">
+                        <div class="progress-info">
+                            <span class="progress-label" id="progress-label">Progression</span>
+                            <span class="progress-count" id="progress-count">0/0</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
                     <div id="form-container" class="form-container">
                         <!-- Dynamic Content will be injected here -->
                         <div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>
                     </div>
                 </section>
 
-                <!-- Floating Action Button -->
-                <button id="next-field-btn" class="fab-btn hidden" title="Champ suivant">
-                    ⬇
-                </button>
-                </section>
+                <!-- Floating Action Buttons -->
+                <button id="scroll-top-btn" class="fab-scroll-top" title="Remonter en haut">↑</button>
+                <button id="next-field-btn" class="fab-btn hidden" title="Champ suivant">⬇</button>
             </div>
+
+            <!-- Sidebar Overlay (Mobile) -->
+            <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
         </main>
+
+        <!-- Modal Dialog -->
+        <div id="modal-overlay" class="modal-overlay hidden">
+            <div class="modal-dialog">
+                <div class="modal-icon" id="modal-icon"></div>
+                <h3 class="modal-title" id="modal-title"></h3>
+                <p class="modal-message" id="modal-message"></p>
+                <div class="modal-actions" id="modal-actions"></div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>

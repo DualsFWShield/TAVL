@@ -101,6 +101,116 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const searchContainer = document.getElementById('search-container');
     const themeToggleBtn = document.getElementById('theme-toggle');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressCount = document.getElementById('progress-count');
+    const scrollTopBtn = document.getElementById('scroll-top-btn');
+
+    // Category icon mapping
+    const CATEGORY_ICONS = {
+        'bâtiment': '🏢', 'batiment': '🏢', 'auditoire': '🎓',
+        'capacité annoncée': '👥', 'capacite annoncee': '👥',
+        'capacité réelle': '👥', 'capacite reelle': '👥',
+        'gradin': '🏟️', 'mobilier': '🪑',
+        'objet': '📦', 'perdu': '📦',
+        'horloge': '🕰️', 'téléphone': '📞', 'telephone': '📞',
+        'audiovisuel': '🎥', 'lavabo': '🚰', 'radiateur': '🌡️',
+        'occultation': '🪟', 'store': '🪟', 'lamelle': '🪟',
+        'poignée': '🚪', 'poignee': '🚪', 'fenêtre': '🪟', 'fenetre': '🪟', 'porte-manteau': '🧥',
+        'revêtement': '🏗️', 'revetement': '🏗️', 'sol': '🏗️',
+        'prise': '🔌', 'courant': '🔌', '220': '🔌',
+        'éclairage': '💡', 'eclairage': '💡', 'lumineux': '💡',
+        'porte': '🚪', 'accès': '🚪', 'acces': '🚪',
+        'sticker': '🏷️', 'affichage': '🏷️', 'colle': '🏷️',
+        'pictogramme': '🚫', 'fumer': '🚫',
+        'humidité': '💧', 'humidite': '💧', 'infiltration': '💧',
+        'enlèvement': '🚛', 'enlevement': '🚛', 'gpex': '🚛',
+        'constat': '📝', 'remarque': '📝',
+        'date': '📅', 'passage': '📅',
+        'tavl': '👤', 'relevé': '👤', 'releve': '👤',
+        'sécurité': '🔒', 'securite': '🔒',
+    };
+    function getCategoryIcon(catName) {
+        const lower = (catName || '').toLowerCase();
+        for (const [key, icon] of Object.entries(CATEGORY_ICONS)) {
+            if (lower.includes(key)) return icon;
+        }
+        return '📋';
+    }
+    const burgerBtn = document.getElementById('burger-btn');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar');
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalIcon = document.getElementById('modal-icon');
+    const modalTitle = document.getElementById('modal-title');
+    const modalMessage = document.getElementById('modal-message');
+    const modalActions = document.getElementById('modal-actions');
+
+    /* ==========================================================================
+       MODAL SYSTEM (replaces browser confirm/alert)
+       ========================================================================== */
+    function showModal({ icon = 'ℹ️', title = '', message = '', buttons = [] }) {
+        return new Promise(resolve => {
+            modalIcon.textContent = icon;
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalActions.innerHTML = '';
+
+            buttons.forEach(btn => {
+                const b = document.createElement('button');
+                b.className = 'modal-btn' + (btn.primary ? ' modal-btn-primary' : '');
+                b.textContent = btn.label;
+                b.addEventListener('click', () => {
+                    modalOverlay.classList.add('hidden');
+                    resolve(btn.value);
+                });
+                modalActions.appendChild(b);
+            });
+
+            modalOverlay.classList.remove('hidden');
+        });
+    }
+
+    function showAlert(message, icon = 'ℹ️', title = 'Information') {
+        return showModal({
+            icon, title, message,
+            buttons: [{ label: 'OK', value: true, primary: true }]
+        });
+    }
+
+    function showConfirm(message, icon = '❓', title = 'Confirmation') {
+        return showModal({
+            icon, title, message,
+            buttons: [
+                { label: 'Annuler', value: false },
+                { label: 'Confirmer', value: true, primary: true }
+            ]
+        });
+    }
+
+    /* ==========================================================================
+       BURGER MENU (Mobile Drawer)
+       ========================================================================== */
+    function openDrawer() {
+        if (!sidebar) return;
+        sidebar.classList.add('drawer-open');
+        sidebarOverlay.classList.remove('hidden');
+        sidebarOverlay.classList.add('visible');
+    }
+
+    function closeDrawer() {
+        if (!sidebar) return;
+        sidebar.classList.remove('drawer-open');
+        sidebarOverlay.classList.remove('visible');
+        setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+    }
+
+    burgerBtn.addEventListener('click', () => {
+        if (sidebar.classList.contains('drawer-open')) closeDrawer();
+        else openDrawer();
+    });
+
+    sidebarOverlay.addEventListener('click', closeDrawer);
 
     /* ==========================================================================
        THEME MANAGEMENT
@@ -199,7 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         req.onsuccess = async () => {
             if (req.result && req.result.buffer) {
-                if (confirm('Une session précédente (' + req.result.name + ') a été trouvée. Voulez-vous la restaurer ?')) {
+                const shouldRestore = await showConfirm(
+                    'Une session précédente (' + req.result.name + ') a été trouvée. Voulez-vous la restaurer ?',
+                    '💾', 'Session sauvegardée'
+                );
+                if (shouldRestore) {
                     const blob = new Blob([req.result.buffer]);
                     const file = new File([blob], req.result.name);
                     await handleFile(file, false); // Do not overwrite DB yet
@@ -276,10 +390,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             uploadSection.classList.add('hidden');
             splitView.classList.remove('hidden');
+            burgerBtn.classList.remove('hidden');
 
         } catch (error) {
             console.error('Error parsing file:', error);
-            alert('Erreur: Structure du fichier non reconnue ou fichier invalide.');
+            showAlert('Structure du fichier non reconnue ou fichier invalide.', '❌', 'Erreur');
         }
     }
 
@@ -430,19 +545,133 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRowIndex = item.rowIndex;
         currentAuditoireTitle.textContent = item.name;
 
-        renderForm(item.rowIndex);
-        // Clear search on switch
+        // Fade transition
+        formContainer.classList.add('fade-out');
+        setTimeout(() => {
+            renderForm(item.rowIndex);
+            updateProgressBar(item.rowIndex);
+            formContainer.classList.remove('fade-out');
+            formContainer.classList.add('fade-in');
+            setTimeout(() => formContainer.classList.remove('fade-in'), 250);
+        }, 150);
+
         searchInput.value = '';
-        if (searchContainer) searchContainer.style.display = 'block'; // Ensure visible when auditoire selected
+        if (searchContainer) searchContainer.style.display = 'block';
+        if (progressBarContainer) progressBarContainer.style.display = 'block';
+        closeDrawer();
+    }
+
+    function updateProgressBar(rowIndex) {
+        if (!mainWorksheet || !progressFill) return;
+        const row = mainWorksheet.getRow(rowIndex);
+        let total = 0, filled = 0;
+        schema.forEach(field => {
+            if (!field.question) return;
+            const cell = row.getCell(field.colIndex);
+            let isExempt = false;
+            if (cell && cell.style && cell.style.fill) {
+                const f = cell.style.fill;
+                if (f.type === 'pattern' && f.pattern && f.pattern !== 'none' && f.pattern !== 'solid') isExempt = true;
+            }
+            if (isExempt) return;
+            total++;
+            const val = getVal(row, field.colIndex);
+            if (val && val.toString().trim() !== '') filled++;
+        });
+        const pct = total === 0 ? 0 : Math.round((filled / total) * 100);
+        progressFill.style.width = pct + '%';
+        progressCount.textContent = filled + '/' + total;
     }
 
     function renderForm(rowIndex) {
         formContainer.innerHTML = '';
         const row = mainWorksheet.getRow(rowIndex);
 
-        // Group fields by Category
-        const byCategory = {};
+        // Extract structurally read-only fields for ID Card
+        const forceEditMode = document.body.classList.contains('force-edit-mode');
+        const idFields = [];
+        const normalFields = [];
+
         schema.forEach(field => {
+            const catNorm = (field.category || '').toLowerCase().trim();
+            const questNorm = (field.question || '').toLowerCase().trim();
+            let isStructureReadOnly = false;
+
+            if (!forceEditMode) {
+                const isBatiment = catNorm === 'bâtiments' || catNorm === 'batiments' || questNorm === 'bâtiments' || questNorm === 'batiments';
+                const isAuditoire = catNorm === 'auditoires' || questNorm === 'auditoires';
+                const isCapacite = catNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE) || questNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE);
+                const isGradin = catNorm.includes('gradin') && catNorm.includes('mobile');
+                
+                if (isBatiment || isAuditoire || isCapacite || isGradin || (field.type === CONFIG.TYPES.GMF && (catNorm.includes('gradin') || questNorm.includes('gradin')))) {
+                    isStructureReadOnly = true;
+                }
+            }
+
+            if (isStructureReadOnly) {
+                idFields.push(field);
+            } else {
+                normalFields.push(field);
+            }
+        });
+
+        // Render ID Card if not empty
+        if (idFields.length > 0) {
+            const idCard = document.createElement('div');
+            idCard.className = 'id-card';
+
+            // Find Auditoire Name to use as Title
+            const auditoireField = idFields.find(f => {
+                const c = (f.category || '').toLowerCase();
+                const q = (f.question || '').toLowerCase();
+                return c === 'auditoires' || q === 'auditoires';
+            });
+            const auditoireName = auditoireField ? getVal(row, auditoireField.colIndex) : 'Auditoire';
+
+            const header = document.createElement('div');
+            header.className = 'id-card-header';
+            header.innerHTML = `<span class="id-icon">🎓</span><h2>${auditoireName}</h2>`;
+            idCard.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'id-card-body';
+
+            idFields.forEach(field => {
+                if (field === auditoireField) return; // skip rendering name again
+                const val = getVal(row, field.colIndex);
+                if (!val && val !== 0 && val !== '0') return; // skip empty
+
+                const item = document.createElement('div');
+                item.className = 'id-card-item';
+                
+                const label = document.createElement('div');
+                label.className = 'id-card-label';
+                label.textContent = field.question || field.category;
+                
+                const value = document.createElement('div');
+                value.className = 'id-card-value';
+                
+                // Format value if needed (GMF translation)
+                let displayVal = val;
+                if (field.type === CONFIG.TYPES.GMF) {
+                    if (val === 'G') displayVal = 'Gradin';
+                    else if (val === 'M') displayVal = 'Mobile';
+                    else if (val === 'F') displayVal = 'Fixe';
+                }
+                value.textContent = displayVal;
+
+                item.appendChild(label);
+                item.appendChild(value);
+                body.appendChild(item);
+            });
+
+            idCard.appendChild(body);
+            formContainer.appendChild(idCard);
+        }
+
+        // Group normal fields by Category
+        const byCategory = {};
+        normalFields.forEach(field => {
             if (!byCategory[field.category]) byCategory[field.category] = [];
             byCategory[field.category].push(field);
         });
@@ -452,7 +681,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const catDiv = document.createElement('div');
             catDiv.className = 'form-category';
             const h3 = document.createElement('h3');
-            h3.textContent = category || 'Général';
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'category-icon';
+            iconSpan.textContent = getCategoryIcon(category);
+            h3.appendChild(iconSpan);
+            h3.appendChild(document.createTextNode(category || 'Général'));
             catDiv.appendChild(h3);
 
             let hasVisibleFields = false;
@@ -473,11 +706,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const isOptional = isFacultatif(cell);
 
+                // Check if currently greyed (darkGray pattern = manually marked N/A)
+                const isCurrentlyGrey = (c) => {
+                    if (!c || !c.style || !c.style.fill) return false;
+                    const f = c.style.fill;
+                    return (f.type === 'pattern' && f.pattern === 'darkGray');
+                };
+                const isGreyed = isCurrentlyGrey(cell);
+
+                // Field is disabled if optional (Non-Applicable) OR manually greyed
+                const isFieldDisabled = isOptional || isGreyed;
+
                 const group = document.createElement('div');
                 group.className = 'field-group';
+                if (isFieldDisabled) group.classList.add('disabled-group');
 
                 const label = document.createElement('label');
                 label.className = 'field-question';
+                if (isFieldDisabled) label.classList.add('question-optional');
                 label.textContent = field.question || field.category;
 
                 // Badges
@@ -506,54 +752,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 headerWrapper.appendChild(label);
 
+                // Tooltip wrapper for checkbox
+                const toggleWrapper = document.createElement('div');
+                toggleWrapper.className = 'grey-toggle-wrapper';
+
                 const greyToggle = document.createElement('input');
                 greyToggle.type = 'checkbox';
                 greyToggle.title = 'Marquer comme non-accessible (grisé)';
                 greyToggle.className = 'grey-toggle-checkbox';
 
-                // Check if currently greyed (Model or Style)
-                const isCurrentlyGrey = (c) => {
-                    if (!c || !c.style || !c.style.fill) return false;
-                    const f = c.style.fill;
-                    return (f.type === 'pattern' && f.pattern === 'darkGray');
-                };
+                const tooltipSpan = document.createElement('span');
+                tooltipSpan.className = 'tooltip-text';
+                tooltipSpan.textContent = 'Non-accessible (griser)';
 
-                if (isCurrentlyGrey(cell)) {
+                // Pre-check if optional or manually greyed
+                if (isFieldDisabled) {
                     greyToggle.checked = true;
                 }
 
                 greyToggle.onchange = (e) => {
-                    toggleCellGrey(field.colIndex, e.target.checked, group);
+                    toggleCellGrey(field.colIndex, e.target.checked);
                 };
 
-                headerWrapper.appendChild(greyToggle);
-                group.appendChild(headerWrapper); // Insert wrapper containing label and toggle
-
-                // --- Read-Only Logic ---
-                const catNorm = (field.category || '').toLowerCase().trim();
-                const questNorm = (field.question || '').toLowerCase().trim();
-                let isReadOnly = false;
-
-                const forceEditMode = document.body.classList.contains('force-edit-mode');
-
-                if (!forceEditMode) {
-                    // Strict checks for structural fields
-                    const isBatiment = catNorm === 'bâtiments' || catNorm === 'batiments' || questNorm === 'bâtiments' || questNorm === 'batiments';
-                    const isAuditoire = catNorm === 'auditoires' || questNorm === 'auditoires';
-                    const isCapacite = catNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE) || questNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE);
-                    const isGradin = catNorm.includes('gradin') && catNorm.includes('mobile'); // Complex header usually for GMF
-
-                    if (isBatiment || isAuditoire || isCapacite || isGradin ||
-                        (field.type === CONFIG.TYPES.GMF && (catNorm.includes('gradin') || questNorm.includes('gradin')))) {
-                        isReadOnly = true;
-                    }
-                }
+                toggleWrapper.appendChild(greyToggle);
+                toggleWrapper.appendChild(tooltipSpan);
+                headerWrapper.appendChild(toggleWrapper);
+                group.appendChild(headerWrapper);
 
                 // --- Render Input ---
                 const type = field.type;
+                const shouldDisableInput = isFieldDisabled; // Since structural read-only are filtered out
 
                 if (type === CONFIG.TYPES.TRUE_FALSE || type === CONFIG.TYPES.YES_NO || type === CONFIG.TYPES.GMF) {
-                    // Radio Groups
+                    // Toggle Pill Groups
                     let options = [];
                     let labels = {};
 
@@ -561,37 +792,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     else if (type === CONFIG.TYPES.YES_NO) { options = ['o', 'n']; labels = { o: 'Oui', n: 'Non' }; }
                     else if (type === CONFIG.TYPES.GMF) { options = ['G', 'M', 'F']; labels = { G: 'Gradin', M: 'Mobile', F: 'Fixe' }; }
 
-                    const radioContainer = document.createElement('div');
-                    radioContainer.className = 'radio-group';
-                    if (isReadOnly) radioContainer.classList.add('disabled-group');
+                    const pillContainer = document.createElement('div');
+                    pillContainer.className = 'pill-group';
+                    if (isFieldDisabled) {
+                        pillContainer.classList.add('disabled-group');
+                    }
 
                     options.forEach(opt => {
                         const wrapper = document.createElement('label');
-                        wrapper.className = 'radio-option';
+                        wrapper.className = 'pill-option';
 
                         const input = document.createElement('input');
                         input.type = 'radio';
                         input.name = `field-${field.colIndex}`;
                         input.value = opt;
-                        if (isReadOnly) input.disabled = true;
+                        if (shouldDisableInput) input.disabled = true;
 
-                        if (val.toString().toLowerCase() === opt.toLowerCase()) input.checked = true;
+                        const isChecked = val.toString().toLowerCase() === opt.toLowerCase();
+                        if (isChecked) {
+                            input.checked = true;
+                            // Color coding for pills
+                            if (type === CONFIG.TYPES.YES_NO) {
+                                wrapper.classList.add(opt === 'o' ? 'selected-success' : 'selected-danger');
+                            } else if (type === CONFIG.TYPES.TRUE_FALSE) {
+                                wrapper.classList.add(opt === 'v' ? 'selected-success' : 'selected-danger');
+                            } else {
+                                wrapper.classList.add('selected');
+                            }
+                        }
 
-                        input.addEventListener('change', () => updateCell(field.colIndex, opt));
+                        input.addEventListener('change', () => {
+                            // Update all siblings
+                            pillContainer.querySelectorAll('.pill-option').forEach(p => {
+                                p.classList.remove('selected', 'selected-success', 'selected-danger');
+                            });
+                            if (type === CONFIG.TYPES.YES_NO) {
+                                wrapper.classList.add(opt === 'o' ? 'selected-success' : 'selected-danger');
+                            } else if (type === CONFIG.TYPES.TRUE_FALSE) {
+                                wrapper.classList.add(opt === 'v' ? 'selected-success' : 'selected-danger');
+                            } else {
+                                wrapper.classList.add('selected');
+                            }
+                            updateCell(field.colIndex, opt);
+                        });
 
                         const textSpan = document.createElement('span');
                         textSpan.textContent = labels[opt] || opt;
 
                         wrapper.appendChild(input);
                         wrapper.appendChild(textSpan);
-                        radioContainer.appendChild(wrapper);
+                        pillContainer.appendChild(wrapper);
                     });
-                    group.appendChild(radioContainer);
+                    group.appendChild(pillContainer);
 
                 } else if (type === CONFIG.TYPES.DATE) {
                     const input = document.createElement('input');
                     input.type = 'date';
-                    if (isReadOnly) {
+                    if (shouldDisableInput) {
                         input.disabled = true;
                         input.classList.add('input-disabled');
                     }
@@ -629,10 +886,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = document.createElement('input');
                     input.type = 'number';
                     input.value = val;
-                    if (isReadOnly) {
+                    if (shouldDisableInput) {
                         input.disabled = true;
                         input.classList.add('input-disabled');
                     }
+
+                    // Auto-fill capacité réelle from capacité annoncée
+                    const qLow = (field.question || '').toLowerCase();
+                    const cLow = (field.category || '').toLowerCase();
+                    const isCapaciteReelle = CONFIG.AUTO_FILL.CAPACITY_TARGET.some(t => qLow.includes(t)) || cLow.includes('capacité réelle');
+
+                    if (isCapaciteReelle && !val) {
+                        const capField = schema.find(f => {
+                            const fc = (f.category || '').toLowerCase();
+                            const fq = (f.question || '').toLowerCase();
+                            return fc === CONFIG.AUTO_FILL.CAPACITY_SOURCE || fq === CONFIG.AUTO_FILL.CAPACITY_SOURCE;
+                        });
+                        if (capField) {
+                            const capVal = getVal(row, capField.colIndex);
+                            if (capVal) {
+                                if (isOptional) {
+                                    // Non-applicable: just show as placeholder
+                                    input.placeholder = capVal;
+                                } else {
+                                    // Applicable: fill with real value
+                                    input.value = capVal;
+                                    updateCell(field.colIndex, capVal);
+                                }
+                            }
+                        }
+                    }
+
                     input.addEventListener('input', (e) => updateCell(field.colIndex, e.target.value));
                     group.appendChild(input);
                 } else {
@@ -640,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = document.createElement('textarea');
                     input.rows = 2;
                     input.value = val;
-                    if (isReadOnly) {
+                    if (shouldDisableInput) {
                         input.disabled = true;
                         input.classList.add('input-disabled');
                     }
@@ -673,6 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         saveEditToDB(currentRowIndex, colIndex, value);
         updateSidebarStatus(currentRowIndex);
+        updateProgressBar(currentRowIndex);
     }
 
     /* ==========================================================================
@@ -693,20 +978,25 @@ document.addEventListener('DOMContentLoaded', () => {
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error(error);
-            alert('Export failed');
+            showAlert('L\'export a échoué. Veuillez réessayer.', '❌', 'Erreur d\'export');
         }
     });
 
     clearBtn.addEventListener('click', () => {
         splitView.classList.add('hidden');
         uploadSection.classList.remove('hidden');
+        burgerBtn.classList.add('hidden');
         currentWorkbook = null;
         fileInput.value = '';
     });
 
     // 1. Force Edit Mode
-    unlockBtn.addEventListener('click', () => {
-        if (confirm("Voulez-vous activer le mode 'Édition Forcée' ? Cela déverrouillera tous les champs structurels (Bâtiments, Capacité, etc.).")) {
+    unlockBtn.addEventListener('click', async () => {
+        const shouldUnlock = await showConfirm(
+            "Cela déverrouillera tous les champs structurels (Bâtiments, Capacité, etc.).",
+            '🔓', 'Activer l\'Édition Forcée ?'
+        );
+        if (shouldUnlock) {
             document.body.classList.toggle('force-edit-mode');
             if (currentRowIndex) renderForm(currentRowIndex);
         }
@@ -782,6 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (editsMade > 0) {
             renderForm(currentRowIndex);
             updateSidebarStatus(currentRowIndex);
+            updateProgressBar(currentRowIndex);
         }
     });
 
@@ -912,11 +1203,11 @@ document.addEventListener('DOMContentLoaded', () => {
             found.scrollIntoView({ behavior: 'smooth', block: 'center' });
             found.focus();
         } else {
-            alert("Tous les champs obligatoires semblent remplis !");
+            showAlert('Tous les champs obligatoires semblent remplis !', '✅', 'Terminé');
         }
     });
 
-    function toggleCellGrey(colIndex, isGreyed, groupElement) {
+    function toggleCellGrey(colIndex, isGreyed) {
         if (!mainWorksheet || currentRowIndex === null) return;
         const row = mainWorksheet.getRow(currentRowIndex);
         const cell = row.getCell(colIndex);
@@ -926,31 +1217,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...cell.style,
                 fill: CONFIG.STYLES.GREY_PATTERN.fill
             };
-            groupElement.classList.add('disabled-group');
-            // Disable inputs within this group
-            const inputs = groupElement.querySelectorAll('input:not(.grey-toggle-checkbox), textarea, select');
-            inputs.forEach(input => input.disabled = true);
         } else {
-            // Revert style (basic clear of fill, or reset to none if we knew prev)
-            // For now, setting fill to undefined or specifically type 'none'
-            // We need to keep other styles (border, font), so spreading is good.
             const newStyle = { ...cell.style };
             delete newStyle.fill;
             cell.style = newStyle;
-
-            groupElement.classList.remove('disabled-group');
-            const inputs = groupElement.querySelectorAll('input:not(.grey-toggle-checkbox), textarea, select');
-            inputs.forEach(input => input.disabled = false);
         }
 
-        // Save metadata change to DB
-        // We persist the 'isGreyed' boolean. The actual pattern logic is re-applied on render currently?
-        // No, render checks cell style. So updating cell object in memory is enough for immediate export.
-        // But for persistence across reload, we need to save this fact.
         saveEditToDB(currentRowIndex, colIndex, cell.value, isGreyed);
-
-        // Also update completion status
         updateSidebarStatus(currentRowIndex);
+        updateProgressBar(currentRowIndex);
+
+        // Re-render form to ensure clean state (avoids opacity stacking bugs)
+        renderForm(currentRowIndex);
+    }
+
+    // Scroll-to-top button
+    if (scrollTopBtn) {
+        formContainer.addEventListener('scroll', () => {
+            if (formContainer.scrollTop > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+        scrollTopBtn.addEventListener('click', () => {
+            formContainer.scrollTo({ top: 0, behavior: 'smooth' });
+        });
     }
 
     initDB();
