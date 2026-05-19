@@ -37,6 +37,7 @@
                 <button class="action-btn primary" id="export-xlsx-btn">
                     <span>📥 Exporter</span>
                 </button>
+                <input type="file" id="add-file-input" accept=".xlsx" hidden>
             </div>
         </header>
 
@@ -44,12 +45,32 @@
         <main class="main-content">
             <!-- Upload Section -->
             <section id="upload-section" class="upload-container">
-                <div class="drop-zone" id="drop-zone">
-                    <div class="icon">📂</div>
-                    <h2>Glissez-déposez votre fichier (Fichier.xlsx)</h2>
-                    <input type="file" id="file-input" accept=".xlsx" hidden>
+                <div class="upload-inner">
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="icon">📂</div>
+                        <h2>Glissez-déposez vos fichiers (.xlsx)</h2>
+                        <p class="drop-hint">Vous pouvez ouvrir plusieurs fichiers</p>
+                        <input type="file" id="file-input" accept=".xlsx" multiple hidden>
+                    </div>
+
+                    <!-- Saved Sessions History -->
+                    <div id="saved-sessions" class="saved-sessions hidden">
+                        <div class="saved-sessions-header">
+                            <h3>💾 Sauvegardes</h3>
+                            <button id="clear-all-saves-btn" class="clear-all-btn" title="Supprimer toutes les sauvegardes">Tout effacer</button>
+                        </div>
+                        <div id="saved-sessions-list" class="saved-sessions-list">
+                            <!-- Cards injected here -->
+                        </div>
+                    </div>
                 </div>
             </section>
+
+            <!-- File Tabs Bar -->
+            <div id="file-tabs-bar" class="file-tabs-bar hidden">
+                <div id="file-tabs" class="file-tabs"></div>
+                <button id="add-file-btn" class="add-file-btn" title="Ouvrir un autre fichier">+</button>
+            </div>
 
             <!-- Split View: Sidebar + Editor -->
             <div id="split-view" class="split-view hidden">
