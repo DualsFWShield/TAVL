@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0a0c13">
     
     <!-- iOS Support -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TAVL">
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/0f172a/ffffff/png?text=TAVL">
@@ -31,6 +31,12 @@
                     <h1>Relevés TAVL</h1>
                     <p>Analyse locale — Importez le fichier Excel pour commencer</p>
                 </div>
+            </div>
+            <div class="mode-switcher hidden" id="mode-switcher">
+                <button class="mode-tab active" id="mode-releve-btn">📝 Relevés</button>
+                <button class="mode-tab" id="mode-post-btn">📊 Post-Relevé</button>
+                <button class="mode-tab" id="mode-stats-btn">📈 Stats & Graphes</button>
+                <button class="mode-tab" id="mode-identity-btn">🏷️ Cartes d'identité</button>
             </div>
             <div class="header-controls">
                 <button class="action-btn secondary" id="theme-toggle" title="Changer de thème">☀</button>
@@ -57,7 +63,10 @@
                     <div id="saved-sessions" class="saved-sessions hidden">
                         <div class="saved-sessions-header">
                             <h3>💾 Sauvegardes</h3>
-                            <button id="clear-all-saves-btn" class="clear-all-btn" title="Supprimer toutes les sauvegardes">Tout effacer</button>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button id="open-all-saves-btn" class="action-btn secondary" title="Ouvrir toutes les sauvegardes">Tout ouvrir</button>
+                                <button id="clear-all-saves-btn" class="clear-all-btn" title="Supprimer toutes les sauvegardes">Tout effacer</button>
+                            </div>
                         </div>
                         <div id="saved-sessions-list" class="saved-sessions-list">
                             <!-- Cards injected here -->
@@ -126,7 +135,200 @@
                 <!-- Floating Action Buttons -->
                 <button id="scroll-top-btn" class="fab-scroll-top" title="Remonter en haut">↑</button>
                 <button id="next-field-btn" class="fab-btn hidden" title="Champ suivant">⬇</button>
+                <button id="mobile-sidebar-fab" class="mobile-fab" title="Menu des Salles">☰</button>
             </div>
+
+            <!-- Post-Relevé Dashboard Section -->
+            <section id="post-releve-section" class="post-releve-section hidden">
+                <div class="dashboard-scroll-wrapper" style="display: flex; flex-direction: column;">
+                    <!-- Global Banner Metrics -->
+                    <div class="metrics-row" id="dashboard-metrics-row">
+                        <!-- Dynamically filled: Fichiers, Salles, Taux complétion, Anomalies -->
+                    </div>
+
+                    <!-- Main Grid -->
+                    <div class="dashboard-main-grid">
+                        
+                        <!-- Panel 1: Fichiers & Stats (Left) -->
+                        <div class="left-panel">
+                            <div class="dashboard-panel">
+                                <div class="dashboard-panel-header">
+                                    <h3>📂 Fichiers Chargés</h3>
+                                </div>
+                                <div class="dashboard-panel-body" id="dashboard-files-list">
+                                    <!-- Injected active excel files status -->
+                                </div>
+                            </div>
+                            <div class="dashboard-panel">
+                                <div class="dashboard-panel-header">
+                                    <h3>📈 Stats d'Anomalies</h3>
+                                </div>
+                                <div class="dashboard-panel-body" id="dashboard-stats-list">
+                                    <!-- Injected non-zero category stats -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Feed d'anomalies (Center) -->
+                        <div class="center-panel">
+                            <div class="dashboard-panel" style="height: 100%;">
+                                <div class="dashboard-panel-header">
+                                    <h3>🚨 Anomalies Détectées</h3>
+                                </div>
+                                <div class="dashboard-panel-body" style="flex: 1; min-height: 0;">
+                                    <div class="anomalies-controls">
+                                        <div class="anomalies-search">
+                                            <input type="text" id="anomalies-search-input" placeholder="Filtrer par salle ou question...">
+                                        </div>
+                                        <select class="anomalies-filter-select" id="anomalies-filter-file">
+                                            <option value="all">Tous les fichiers</option>
+                                        </select>
+                                    </div>
+                                    <div class="anomalies-feed" id="anomalies-feed">
+                                        <!-- Injected anomaly feed items -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 3: Remarques & Débriefing (Right) -->
+                        <div class="right-panel">
+                            <div class="dashboard-panel" style="margin-bottom: 0.75rem;">
+                                <div class="dashboard-panel-header">
+                                    <h3>📝 Remarques & Débriefing</h3>
+                                </div>
+                                <div class="dashboard-panel-body" style="display: flex; flex-direction: column;">
+                                    <p style="font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.5rem;">
+                                        Sélectionnez un auditoire ouvert pour consigner des remarques qui figureront dans l'export.
+                                    </p>
+                                    
+                                    <div class="remarques-controls" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                        <select id="remark-auditoire-select" class="styled-select" style="width: 100%;">
+                                            <option value="">-- Choisir un auditoire --</option>
+                                        </select>
+                                        
+                                        <div class="remark-input-group">
+                                            <label for="remarque-generale-input" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary);">Remarque Générale</label>
+                                            <textarea id="remarque-generale-input" class="search-input-themed" rows="2" placeholder="Saisissez une remarque générale..." style="width: 100%; resize: vertical; padding: 0.5rem;"></textarea>
+                                        </div>
+                                        
+                                        <div class="remark-input-group">
+                                            <label for="debriefing-input" style="font-size: 0.75rem; font-weight: 600; color: var(--text-primary);">Débriefing</label>
+                                            <textarea id="debriefing-input" class="search-input-themed" rows="2" placeholder="Saisissez le débriefing..." style="width: 100%; resize: vertical; padding: 0.5rem;"></textarea>
+                                        </div>
+                                        
+                                        <button class="action-btn primary" id="save-remark-btn" type="button" style="width: 100%; justify-content: center;">💾 Enregistrer</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dashboard-panel">
+                                <div class="dashboard-panel-header">
+                                    <h3>📥 Système d'Export Dédié</h3>
+                                </div>
+                                <div class="dashboard-panel-body" style="gap: 0.75rem;">
+                                    
+                                    <!-- Options: Files select -->
+                                    <div class="export-panel-group">
+                                        <div class="export-group-header">
+                                            <span class="export-panel-group-title">1. Fichiers à inclure</span>
+                                            <button type="button" class="toggle-all-btn" data-target="export-files-checkboxes" title="Tout sélectionner / désélectionner">☑ Tous</button>
+                                        </div>
+                                        <div class="export-list-scroll" id="export-files-checkboxes">
+                                            <!-- Dynamically injected checkbox list -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Options: Categories select -->
+                                    <div class="export-panel-group">
+                                        <div class="export-group-header">
+                                            <span class="export-panel-group-title">2. Catégories à inclure</span>
+                                            <button type="button" class="toggle-all-btn" data-target="export-categories-checkboxes" title="Tout sélectionner / désélectionner">☑ Tous</button>
+                                        </div>
+                                        <div class="export-list-scroll" id="export-categories-checkboxes">
+                                            <!-- Dynamically injected category list -->
+                                        </div>
+                                    </div>
+
+                                    <!-- Options: Pool selector -->
+                                    <div class="export-panel-group">
+                                        <span class="export-panel-group-title">3. Pool d'auditoires</span>
+                                        <label class="export-radio-item">
+                                            <input type="radio" name="export-pool" value="all" checked>
+                                            <span>Tous les auditoires</span>
+                                        </label>
+                                        <label class="export-radio-item">
+                                            <input type="radio" name="export-pool" value="anomalies">
+                                            <span>Uniquement ceux avec anomalies</span>
+                                        </label>
+                                        <label class="export-radio-item">
+                                            <input type="radio" name="export-pool" value="completed">
+                                            <span>Uniquement ceux complétés (> 60%)</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="export-action-buttons">
+                                        <button class="export-action-btn btn-glow-primary" id="export-anomalies-xlsx-btn" type="button">
+                                            📊 Générer Rapport d'Anomalies XLSX
+                                        </button>
+                                        <button class="export-action-btn btn-outline" id="export-filtered-xlsx-btn" type="button">
+                                            📥 Exporter les relevés filtrés
+                                        </button>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- Stats & Graphiques Section -->
+            <section id="stats-section" class="post-releve-section hidden" style="display: flex; flex-direction: column;">
+                <div class="section-banner" style="flex-shrink: 0;">
+                    <div class="section-banner-icon">📈</div>
+                    <div class="section-banner-text">
+                        <h2>Statistiques & Graphiques</h2>
+                        <p>Vue d'ensemble de l'état des auditoires et répartition des anomalies</p>
+                    </div>
+                </div>
+                <div class="dashboard-scroll-wrapper" style="flex: 1; overflow-y: auto;">
+                    <div id="stats-charts-container" class="circular-charts-grid">
+                        <div class="empty-dashboard-state">
+                            <span style="font-size: 2rem;">📈</span>
+                            <p>Les graphiques s'afficheront ici.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Identity Cards Section -->
+            <section id="identity-section" class="post-releve-section hidden" style="display: flex; flex-direction: column;">
+                <div class="section-banner" style="flex-shrink: 0;">
+                    <div class="section-banner-icon">🏷️</div>
+                    <div class="section-banner-text">
+                        <h2>Cartes d'Identité des Auditoires</h2>
+                        <p>Récapitulatif des informations et équipements de chaque salle</p>
+                    </div>
+                    <div class="section-banner-controls">
+                        <select class="styled-select" id="identity-filter-file">
+                            <option value="all">Tous les fichiers (Pools)</option>
+                        </select>
+                        <div class="search-box-mini">
+                            <span class="search-box-icon">🔍</span>
+                            <input type="text" id="identity-search-input" placeholder="Rechercher un auditoire...">
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-scroll-wrapper" style="flex: 1; overflow-y: auto;">
+                    <div id="identity-cards-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <div class="empty-dashboard-state">
+                            <span style="font-size: 2rem;">🏷️</span>
+                            <p>Les cartes d'identité s'afficheront ici.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <!-- Sidebar Overlay (Mobile) -->
             <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>

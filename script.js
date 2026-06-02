@@ -3,19 +3,6 @@
  * Handles Excel parsing, UI rendering, interaction logic, and local persistence.
  */
 
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(registration => {
-                console.log('ServiceWorker registration successful with scope: ', registration.scope);
-            })
-            .catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-            });
-    });
-}
-
 document.addEventListener('DOMContentLoaded', () => {
 
     /* ==========================================================================
@@ -36,7 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
         DB: {
             NAME: 'TavlDB',
             STORE_FILE: 'file',
-            STORE_EDITS: 'edits'
+            STORE_EDITS: 'edits',
+            STORE_REMARKS: 'remarks'
         },
 
         // Keywords used to identify special columns or behaviors (Case Insensitive)
@@ -142,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFileBtn = document.getElementById('add-file-btn');
     const addFileInput = document.getElementById('add-file-input');
     const burgerBtn = document.getElementById('burger-btn');
+    const mobileFab = document.getElementById('mobile-sidebar-fab');
     const sidebarOverlay = document.getElementById('sidebar-overlay');
     const sidebar = document.querySelector('.sidebar');
     const modalOverlay = document.getElementById('modal-overlay');
@@ -149,6 +138,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
     const modalActions = document.getElementById('modal-actions');
+
+    // Post-Relevé DOM elements
+    const modeSwitcher = document.getElementById('mode-switcher');
+    const modeReleveBtn = document.getElementById('mode-releve-btn');
+    const modePostBtn = document.getElementById('mode-post-btn');
+    const modeStatsBtn = document.getElementById('mode-stats-btn');
+    const modeIdentityBtn = document.getElementById('mode-identity-btn');
+    const postReleveSection = document.getElementById('post-releve-section');
+    const statsSection = document.getElementById('stats-section');
+    const identitySection = document.getElementById('identity-section');
+    const dashboardMetricsRow = document.getElementById('dashboard-metrics-row');
+    const dashboardFilesList = document.getElementById('dashboard-files-list');
+    const dashboardStatsList = document.getElementById('dashboard-stats-list');
+    const anomaliesSearchInput = document.getElementById('anomalies-search-input');
+    const anomaliesFilterFile = document.getElementById('anomalies-filter-file');
+    const anomaliesFeed = document.getElementById('anomalies-feed');
+    const generateSampleBtn = document.getElementById('generate-sample-btn');
+    const verificationList = document.getElementById('verification-list');
+    const exportFilesCheckboxes = document.getElementById('export-files-checkboxes');
+    const exportCategoriesCheckboxes = document.getElementById('export-categories-checkboxes');
+    const exportAnomaliesXlsxBtn = document.getElementById('export-anomalies-xlsx-btn');
+    const exportFilteredXlsxBtn = document.getElementById('export-filtered-xlsx-btn');
+
+    // Post-Relevé State
+    let currentMode = 'releve'; // 'releve' or 'post'
+    let verificationSample = []; // Array of { sessionId, rowIndex, verified }
+
 
     /* ==========================================================================
        MODAL SYSTEM (replaces browser confirm/alert)
@@ -218,6 +234,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sidebar.classList.contains('drawer-open')) closeDrawer();
         else openDrawer();
     });
+    
+    if (mobileFab) {
+        mobileFab.addEventListener('click', () => {
+            if (sidebar.classList.contains('drawer-open')) closeDrawer();
+            else openDrawer();
+        });
+    }
 
     sidebarOverlay.addEventListener('click', closeDrawer);
 
@@ -281,11 +304,19 @@ document.addEventListener('DOMContentLoaded', () => {
        ========================================================================== */
     const initDB = () => {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(CONFIG.DB.NAME, 3);
+            const request = indexedDB.open(CONFIG.DB.NAME, 4);
             request.onupgradeneeded = (e) => {
                 db = e.target.result;
                 if (!db.objectStoreNames.contains(CONFIG.DB.STORE_FILE)) db.createObjectStore(CONFIG.DB.STORE_FILE);
-                if (!db.objectStoreNames.contains(CONFIG.DB.STORE_EDITS)) db.createObjectStore(CONFIG.DB.STORE_EDITS, { keyPath: 'id' });
+                if (!db.objectStoreNames.contains(CONFIG.DB.STORE_EDITS)) {
+                    const editStore = db.createObjectStore(CONFIG.DB.STORE_EDITS, { keyPath: 'id' });
+                    editStore.createIndex('sessionId', 'sessionId', { unique: false });
+                }
+                if (!db.objectStoreNames.contains(CONFIG.DB.STORE_REMARKS)) {
+                    // Key format: sessionId::roomName
+                    const remarksStore = db.createObjectStore(CONFIG.DB.STORE_REMARKS, { keyPath: 'id' });
+                    remarksStore.createIndex('sessionId', 'sessionId', { unique: false });
+                }
             };
             request.onsuccess = (e) => {
                 db = e.target.result;
@@ -313,30 +344,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearSessionFromDB(sessionId) {
-        if (!db) return;
-        // Remove file entry
-        const tx1 = db.transaction([CONFIG.DB.STORE_FILE], 'readwrite');
-        tx1.objectStore(CONFIG.DB.STORE_FILE).delete(sessionId);
-        // Remove associated edits
-        const tx2 = db.transaction([CONFIG.DB.STORE_EDITS], 'readwrite');
-        const store = tx2.objectStore(CONFIG.DB.STORE_EDITS);
-        const cursorReq = store.openCursor();
-        cursorReq.onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) {
-                if (cursor.value.sessionId === sessionId || cursor.key.startsWith(sessionId + '::')) {
-                    cursor.delete();
+        return new Promise(resolve => {
+            if (!db) return resolve();
+            // Remove file entry
+            const tx1 = db.transaction([CONFIG.DB.STORE_FILE], 'readwrite');
+            tx1.objectStore(CONFIG.DB.STORE_FILE).delete(sessionId);
+            // Remove associated edits
+            const tx2 = db.transaction([CONFIG.DB.STORE_EDITS], 'readwrite');
+            const store = tx2.objectStore(CONFIG.DB.STORE_EDITS);
+            const cursorReq = store.openCursor();
+            cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    if (cursor.value.sessionId === sessionId || cursor.key.startsWith(sessionId + '::')) {
+                        cursor.delete();
+                    }
+                    cursor.continue();
                 }
-                cursor.continue();
-            }
-        };
+            };
+            tx2.oncomplete = () => resolve();
+            tx2.onerror = () => resolve();
+        });
     }
 
     function clearAllDB() {
         if (!db) return;
-        const tx = db.transaction([CONFIG.DB.STORE_FILE, CONFIG.DB.STORE_EDITS], 'readwrite');
+        const tx = db.transaction([CONFIG.DB.STORE_FILE, CONFIG.DB.STORE_EDITS, CONFIG.DB.STORE_REMARKS], 'readwrite');
         tx.objectStore(CONFIG.DB.STORE_FILE).clear();
         tx.objectStore(CONFIG.DB.STORE_EDITS).clear();
+        tx.objectStore(CONFIG.DB.STORE_REMARKS).clear();
+    }
+
+    function saveRemarkToDB(sessionId, roomName, remarqueGenerale, debriefing) {
+        if (!db) return;
+        const tx = db.transaction([CONFIG.DB.STORE_REMARKS], 'readwrite');
+        const store = tx.objectStore(CONFIG.DB.STORE_REMARKS);
+        const id = `${sessionId}::${roomName}`;
+        store.put({ id, sessionId, roomName, remarqueGenerale, debriefing });
+    }
+
+    function loadRemarkFromDB(sessionId, roomName) {
+        return new Promise(resolve => {
+            if (!db) return resolve(null);
+            const tx = db.transaction([CONFIG.DB.STORE_REMARKS], 'readonly');
+            const store = tx.objectStore(CONFIG.DB.STORE_REMARKS);
+            const id = `${sessionId}::${roomName}`;
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    }
+
+    function loadAllRemarksForSession(sessionId) {
+        return new Promise(resolve => {
+            if (!db) return resolve([]);
+            const remarks = [];
+            const tx = db.transaction([CONFIG.DB.STORE_REMARKS], 'readonly');
+            const index = tx.objectStore(CONFIG.DB.STORE_REMARKS).index('sessionId');
+            const req = index.openCursor(IDBKeyRange.only(sessionId));
+            req.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    remarks.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(remarks);
+                }
+            };
+            req.onerror = () => resolve([]);
+        });
     }
 
     const savedSessionsContainer = document.getElementById('saved-sessions');
@@ -641,6 +717,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Open all saves button
+    const openAllSavesBtn = document.getElementById('open-all-saves-btn');
+    if (openAllSavesBtn) {
+        openAllSavesBtn.addEventListener('click', async () => {
+            if (!db) return;
+            const tx = db.transaction([CONFIG.DB.STORE_FILE], 'readonly');
+            const store = tx.objectStore(CONFIG.DB.STORE_FILE);
+            const allKeysReq = store.getAllKeys();
+            
+            allKeysReq.onsuccess = async () => {
+                const keys = (allKeysReq.result || []).filter(k => k !== 'current');
+                // Filter out keys that are already open
+                const keysToOpen = keys.filter(k => !Array.from(sessions.values()).some(s => s.id === k));
+                if (keysToOpen.length > 0) {
+                    await restoreSessions(keysToOpen);
+                    renderSavedSessionsList();
+                } else {
+                    showAlert('Toutes les sauvegardes sont déjà ouvertes.', 'ℹ️', 'Information');
+                }
+            };
+        });
+    }
+
     async function restoreSessions(sessionIds) {
         for (const sessId of sessionIds) {
             const fileTx = db.transaction([CONFIG.DB.STORE_FILE], 'readonly');
@@ -692,13 +791,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const getVal = (row, colIndex) => {
         const cell = row.getCell(colIndex);
         if (!cell || cell.value === null) return '';
+        if (cell.value instanceof Date) {
+            return cell.value.toLocaleDateString('fr-FR');
+        }
         if (typeof cell.value === 'object') {
             if (cell.value.richText) return cell.value.richText.map(t => t.text).join('');
             if (cell.value.text) return cell.value.text;
-            if (cell.value.result !== undefined) return cell.value.result.toString();
+            if (cell.value.result !== undefined) {
+                if (cell.value.result instanceof Date) return cell.value.result.toLocaleDateString('fr-FR');
+                return cell.value.result.toString();
+            }
         }
         return cell.value.toString();
     };
+
+    let _replaceAllFlag = false;
 
     async function handleFile(file, isNewUpload = false, existingSessionId = null) {
         try {
@@ -706,13 +813,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let sessionId = existingSessionId;
 
             if (isNewUpload && !sessionId) {
-                // Check if already open in a tab — just switch to it
-                for (const [id, sess] of sessions) {
-                    if (sess.fileName === file.name) {
-                        switchToSession(id);
-                        return;
-                    }
-                }
+                // Check if already open in a tab — let the DB modal handle it if they upload again
+                // so they have the choice to replace/merge.
 
                 // Check if a save with the same fileName exists in DB
                 if (db) {
@@ -834,21 +936,31 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div style="font-size:0.78rem;color:var(--text-muted);text-align:center">Que souhaitez-vous faire ?</div>
                         `;
 
-                        const choice = await showModal({
-                            icon: '⚖️',
-                            title: `"${file.name}" existe déjà`,
-                            message: cmpDiv,
-                            buttons: [
-                                { label: 'Annuler', value: 'cancel' },
-                                { label: 'Garder les deux', value: 'keep' },
-                                { label: 'Remplacer', value: 'replace' },
-                                { label: 'Fusionner', value: 'merge', primary: true }
-                            ]
-                        });
+                        let choice;
+                        if (_replaceAllFlag) {
+                            choice = 'replace';
+                        } else {
+                            choice = await showModal({
+                                icon: '⚖️',
+                                title: `"${file.name}" existe déjà`,
+                                message: cmpDiv,
+                                buttons: [
+                                    { label: 'Annuler', value: 'cancel' },
+                                    { label: 'Garder les deux', value: 'keep' },
+                                    { label: 'Remplacer', value: 'replace' },
+                                    { label: 'Tout remplacer', value: 'replace_all' },
+                                    { label: 'Fusionner', value: 'merge', primary: true }
+                                ]
+                            });
+                        }
 
                         if (choice === 'cancel') return;
+                        if (choice === 'replace_all') {
+                            _replaceAllFlag = true;
+                            choice = 'replace';
+                        }
                         if (choice === 'replace') {
-                            clearSessionFromDB(existingSave.key);
+                            await clearSessionFromDB(existingSave.key);
                             sessionId = existingSave.key;
                         }
                         if (choice === 'merge') {
@@ -908,9 +1020,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressBarContainer) progressBarContainer.style.display = 'none';
 
             uploadSection.classList.add('hidden');
-            splitView.classList.remove('hidden');
             fileTabsBar.classList.remove('hidden');
-            burgerBtn.classList.remove('hidden');
+            if (modeSwitcher) modeSwitcher.classList.remove('hidden');
+
+            if (currentMode === 'post') {
+                splitView.classList.add('hidden');
+                postReleveSection.classList.remove('hidden');
+                burgerBtn.classList.add('hidden');
+                renderPostReleveDashboard();
+            } else {
+                splitView.classList.remove('hidden');
+                postReleveSection.classList.add('hidden');
+                burgerBtn.classList.remove('hidden');
+            }
 
         } catch (error) {
             console.error('Error parsing file:', error);
@@ -1018,6 +1140,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!session) return;
 
         renderTabs();
+
+        if (currentMode === 'post') {
+            renderPostReleveDashboard();
+            return;
+        }
+
         renderSidebar();
 
         // Restore form state
@@ -1050,10 +1178,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (sessions.size === 0) {
             activeSessionId = null;
+            if (modeSwitcher) modeSwitcher.classList.add('hidden');
+            switchMode('releve');
             splitView.classList.add('hidden');
+            postReleveSection.classList.add('hidden');
             fileTabsBar.classList.add('hidden');
-            uploadSection.classList.remove('hidden');
+            sidebar.classList.add('hidden');
             burgerBtn.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.remove('visible');
             fileTabs.innerHTML = '';
             renderSavedSessionsList(); // Refresh list to show closed session back
             return;
@@ -1072,10 +1204,14 @@ document.addEventListener('DOMContentLoaded', () => {
        UI RENDERING
        ========================================================================== */
 
-    function renderSidebar() {
+    async function renderSidebar() {
         auditoireList.innerHTML = '';
         const session = S();
         if (!session) return;
+        
+        const remarksArray = await loadAllRemarksForSession(session.id);
+        const remarksMap = new Set(remarksArray.filter(r => r.remarqueGenerale || r.debriefing).map(r => r.roomName));
+
         session.dataRows.forEach((item, index) => {
             const li = document.createElement('li');
             li.className = 'sidebar-item';
@@ -1084,6 +1220,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const spanName = document.createElement('span');
             spanName.textContent = item.name;
             li.appendChild(spanName);
+
+            const badgesContainer = document.createElement('div');
+            badgesContainer.style.display = 'flex';
+            badgesContainer.style.alignItems = 'center';
+            badgesContainer.style.gap = '0.25rem';
+
+            if (remarksMap.has(item.name)) {
+                const remarkIcon = document.createElement('span');
+                remarkIcon.innerHTML = '💬';
+                remarkIcon.style.fontSize = '0.8rem';
+                remarkIcon.title = 'Cet auditoire possède une remarque/débriefing';
+                badgesContainer.appendChild(remarkIcon);
+            }
 
             const check = document.createElement('span');
             check.className = 'status-indicator';
@@ -1095,16 +1244,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const percentage = calculateCompletion(item.rowIndex);
             if (percentage >= threshold) check.classList.add('visible');
 
-            li.appendChild(check);
+            badgesContainer.appendChild(check);
+            li.appendChild(badgesContainer);
 
             li.onclick = () => selectAuditoire(index);
             auditoireList.appendChild(li);
         });
     }
 
-    function calculateCompletion(rowIndex) {
-        const session = S();
-        if (!session || !session.worksheet) return 0;
+    function getRowCompletion(session, rowIndex) {
+        if (!session || !session.worksheet) return { percentage: 0, filled: 0, total: 0 };
         const row = session.worksheet.getRow(rowIndex);
         let total = 0;
         let filled = 0;
@@ -1131,8 +1280,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        return total === 0 ? 0 : (filled / total) * 100;
+        const pct = total === 0 ? 0 : Math.round((filled / total) * 100);
+        return { percentage: pct, filled, total };
     }
+
+    function calculateCompletion(rowIndex) {
+        const session = S();
+        return getRowCompletion(session, rowIndex).percentage;
+    }
+
 
     function updateSidebarStatus(rowIndex) {
         const li = Array.from(auditoireList.children).find(el => parseInt(el.dataset.rowIndex) === rowIndex);
@@ -1724,14 +1880,23 @@ document.addEventListener('DOMContentLoaded', () => {
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', (e) => {
+    dropZone.addEventListener('drop', async (e) => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
         const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
-        files.forEach(f => handleFile(f, true));
+        _replaceAllFlag = false;
+        for (const f of files) {
+            await handleFile(f, true);
+        }
+        _replaceAllFlag = false;
     });
-    fileInput.addEventListener('change', (e) => {
-        Array.from(e.target.files).forEach(f => handleFile(f, true));
+    fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        _replaceAllFlag = false;
+        for (const f of files) {
+            await handleFile(f, true);
+        }
+        _replaceAllFlag = false;
         e.target.value = '';
     });
 
@@ -1875,5 +2040,1207 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /* ==========================================================================
+       POST-RELEVE CORE FUNCTIONALITY
+       ========================================================================== */
+
+    function switchMode(mode) {
+        currentMode = mode;
+        modeReleveBtn.classList.remove('active');
+        modePostBtn.classList.remove('active');
+        if (modeStatsBtn) modeStatsBtn.classList.remove('active');
+        if (modeIdentityBtn) modeIdentityBtn.classList.remove('active');
+
+        splitView.classList.add('hidden');
+        postReleveSection.classList.add('hidden');
+        if (statsSection) statsSection.classList.add('hidden');
+        if (identitySection) identitySection.classList.add('hidden');
+
+        if (mode === 'releve') {
+            modeReleveBtn.classList.add('active');
+            splitView.classList.remove('hidden');
+            fileTabsBar.classList.remove('hidden');
+            
+            // Re-render sidebar/form for current active session
+            renderSidebar();
+            const session = S();
+            if (session && session.currentRowIndex) {
+                const idx = session.dataRows.findIndex(r => r.rowIndex === session.currentRowIndex);
+                if (idx !== -1) {
+                    selectAuditoire(idx);
+                }
+            } else {
+                formContainer.innerHTML = '<div class="empty-state">Veuillez sélectionner un auditoire dans la liste à gauche.</div>';
+                currentAuditoireTitle.textContent = 'Sélectionnez un auditoire';
+                if (searchContainer) searchContainer.style.display = 'none';
+                if (progressBarContainer) progressBarContainer.style.display = 'none';
+            }
+            if (window.innerWidth <= 768) {
+                burgerBtn.classList.remove('hidden');
+                if (mobileFab) mobileFab.classList.add('visible');
+            }
+        } else if (mode === 'post') {
+            modePostBtn.classList.add('active');
+            postReleveSection.classList.remove('hidden');
+            burgerBtn.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.remove('visible');
+            closeDrawer();
+            renderPostReleveDashboard();
+        } else if (mode === 'stats') {
+            if (modeStatsBtn) modeStatsBtn.classList.add('active');
+            if (statsSection) statsSection.classList.remove('hidden');
+            burgerBtn.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.remove('visible');
+            closeDrawer();
+            renderStatsGraphs();
+        } else if (mode === 'identity') {
+            if (modeIdentityBtn) modeIdentityBtn.classList.add('active');
+            if (identitySection) identitySection.classList.remove('hidden');
+            burgerBtn.classList.add('hidden');
+            if (mobileFab) mobileFab.classList.remove('visible');
+            closeDrawer();
+            renderIdentityCards();
+        }
+    }
+
+    function createDonutChart(title, valueStr, labelStr, dataArray, colors) {
+        let conicStops = [];
+        let currentPct = 0;
+        let legendsHtml = '';
+        
+        let total = dataArray.reduce((acc, item) => acc + item.value, 0);
+        
+        dataArray.forEach((item, index) => {
+            const pct = total === 0 ? 0 : (item.value / total) * 100;
+            const color = colors[index % colors.length];
+            if (total > 0) {
+                conicStops.push(`${color} ${currentPct}% ${currentPct + pct}%`);
+            }
+            currentPct += pct;
+            
+            legendsHtml += `
+                <div class="donut-legend-item">
+                    <div style="display:flex; align-items:center; overflow:hidden;">
+                        <div class="donut-legend-color" style="background:${color};"></div>
+                        <span class="donut-legend-text" title="${item.label}">${item.label}</span>
+                    </div>
+                    <span class="donut-legend-value">${item.value} (${Math.round(pct)}%)</span>
+                </div>
+            `;
+        });
+        
+        const gradient = total > 0 ? `conic-gradient(${conicStops.join(', ')})` : `conic-gradient(var(--surface-hover) 0% 100%)`;
+        
+        return `
+            <div class="donut-chart-container">
+                <h3>${title}</h3>
+                <div class="donut-chart" style="background: ${gradient};">
+                    <div class="donut-inner">
+                        <span class="donut-inner-value">${valueStr}</span>
+                        <span class="donut-inner-label">${labelStr}</span>
+                    </div>
+                </div>
+                <div class="donut-legend">
+                    ${total > 0 ? legendsHtml : '<div class="donut-legend-item" style="justify-content:center;">Aucune donnée</div>'}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStatsGraphs() {
+        const statsChartsContainer = document.getElementById('stats-charts-container');
+        if (!statsChartsContainer) return;
+
+        if (sessions.size === 0) {
+            statsChartsContainer.innerHTML = `
+                <div class="empty-dashboard-state">
+                    <span style="font-size: 3rem;">📊</span>
+                    <h2>Aucun fichier actif</h2>
+                    <p>Veuillez charger des relevés Excel pour voir les graphiques.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let totalRooms = 0;
+        let completedRooms = 0;
+        let roomsWithAnomalies = 0;
+        let totalAnomalies = 0;
+        
+        const problemCats = new Map();
+        const poolAnomalies = new Map();
+        
+        sessions.forEach(session => {
+            let sessionAnomalies = 0;
+            
+            session.dataRows.forEach(item => {
+                totalRooms++;
+                const nameNorm = item.name.toLowerCase();
+                const threshold = nameNorm.includes('hall, sanitaire') ? 40 : 60;
+                if (getRowCompletion(session, item.rowIndex).percentage >= threshold) {
+                    completedRooms++;
+                }
+
+                const roomAnomalies = getRowAnomalies(session, item.rowIndex);
+                if (roomAnomalies.length > 0) {
+                    roomsWithAnomalies++;
+                    sessionAnomalies += roomAnomalies.length;
+                    totalAnomalies += roomAnomalies.length;
+                }
+                
+                roomAnomalies.forEach(anom => {
+                    const catName = anom.category || 'Général';
+                    const catNorm = catName.toLowerCase();
+                    const qNorm = (anom.question || '').toLowerCase();
+                    
+                    const isComment = catNorm.includes('remarque') || catNorm.includes('constat') || catNorm.includes('commentaire') ||
+                                      qNorm.includes('remarque') || qNorm.includes('constat') || qNorm.includes('commentaire');
+                    
+                    if (!isComment) {
+                        problemCats.set(catName, (problemCats.get(catName) || 0) + 1);
+                    }
+                });
+            });
+            
+            poolAnomalies.set(session.fileName, sessionAnomalies);
+        });
+
+        const colors = ['#6366f1', '#22d3ee', '#f43f5e', '#fbbf24', '#34d399', '#a855f7', '#ec4899'];
+        
+        // 1. Taux de complétion
+        const completionData = [
+            { label: 'Complétés', value: completedRooms },
+            { label: 'Incomplets', value: totalRooms - completedRooms }
+        ];
+        const completionPct = totalRooms === 0 ? 0 : Math.round((completedRooms / totalRooms) * 100);
+        const htmlCompletion = createDonutChart('Taux de complétion', `${completionPct}%`, 'Global', completionData, ['#34d399', 'var(--surface-hover)']);
+        
+        // 2. Salles avec problèmes
+        const problemRoomsData = [
+            { label: 'Avec problèmes', value: roomsWithAnomalies },
+            { label: 'Sans problème', value: totalRooms - roomsWithAnomalies }
+        ];
+        const problemPct = totalRooms === 0 ? 0 : Math.round((roomsWithAnomalies / totalRooms) * 100);
+        const htmlProblemRooms = createDonutChart('Auditoires avec problèmes', `${problemPct}%`, `${roomsWithAnomalies}/${totalRooms}`, problemRoomsData, ['#f43f5e', '#22d3ee']);
+        
+        // 3. Top problèmes (hors commentaires)
+        const sortedProbs = Array.from(problemCats.entries()).sort((a, b) => b[1] - a[1]);
+        const topProbs = sortedProbs.slice(0, 4);
+        const otherProbs = sortedProbs.slice(4).reduce((sum, item) => sum + item[1], 0);
+        const topProbsData = topProbs.map(p => ({ label: p[0], value: p[1] }));
+        if (otherProbs > 0) topProbsData.push({ label: 'Autres catégories', value: otherProbs });
+        
+        const topProbTotal = topProbsData.reduce((sum, i) => sum + i.value, 0);
+        const htmlTopProblems = createDonutChart('Classement des problèmes', `${topProbTotal}`, 'Anomalies', topProbsData, colors);
+        
+        // 4. Problèmes par Pool
+        const poolData = Array.from(poolAnomalies.entries())
+            .filter(p => p[1] > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(p => ({ label: p[0].replace(/\.xlsx$/i, ''), value: p[1] }));
+            
+        const htmlPools = createDonutChart('Anomalies par Pool', `${totalAnomalies}`, 'Total', poolData, colors);
+
+        statsChartsContainer.innerHTML = htmlCompletion + htmlProblemRooms + htmlTopProblems + htmlPools;
+    }
+
+    function renderIdentityCards() {
+        const container = document.getElementById('identity-cards-container');
+        const filterSelect = document.getElementById('identity-filter-file');
+        if (!container) return;
+
+        if (sessions.size === 0) {
+            container.innerHTML = `
+                <div class="empty-dashboard-state">
+                    <span style="font-size: 3rem;">🏷️</span>
+                    <h2>Aucun fichier actif</h2>
+                    <p>Veuillez charger des relevés Excel pour générer les cartes d'identité.</p>
+                </div>
+            `;
+            if (filterSelect) filterSelect.innerHTML = '<option value="all">Tous les fichiers</option>';
+            return;
+        }
+
+        const filterVal = filterSelect ? filterSelect.value : 'all';
+        if (filterSelect) {
+            filterSelect.innerHTML = '<option value="all">Tous les fichiers (Pools)</option>';
+        }
+
+        const searchInput = document.getElementById('identity-search-input');
+        const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+        let html = '';
+        
+        sessions.forEach(session => {
+            if (filterSelect) {
+                const opt = document.createElement('option');
+                opt.value = session.id;
+                opt.textContent = session.fileName;
+                filterSelect.appendChild(opt);
+            }
+
+            if (filterVal !== 'all' && session.id !== filterVal) return;
+
+            let roomCount = 0;
+            let poolHtml = '';
+
+            session.dataRows.forEach(dataRow => {
+                const roomName = dataRow.name;
+                if (searchVal && !roomName.toLowerCase().includes(searchVal)) return;
+
+                if (!session.worksheet) return;
+                const wsRow = session.worksheet.getRow(dataRow.rowIndex);
+                roomCount++;
+                
+                let statsHtml = '';
+                let capAnnoncee = '-';
+                let batiment = '-';
+                let fmg = '-';
+
+                // Find announced capacity first for anomaly checks
+                const capField = session.schema.find(f => {
+                    const fc = (f.category || '').toLowerCase();
+                    const fq = (f.question || '').toLowerCase();
+                    return fc.includes('capacité annoncée') || fq.includes('capacité annoncée');
+                });
+                const announcedCap = capField ? getVal(wsRow, capField.colIndex) : '';
+
+                session.schema.forEach(field => {
+                    const val = getVal(wsRow, field.colIndex);
+                    if (val === null || val === undefined || val.toString().trim() === '') return;
+                    
+                    const qNorm = (field.question || '').toLowerCase();
+                    const catNorm = (field.category || '').toLowerCase();
+                    const isAno = isValAnomaly(field, val, announcedCap);
+                    
+                    // Extract core info
+                    if (catNorm.includes('capacité annoncée') || qNorm.includes('capacité annoncée')) {
+                        capAnnoncee = val;
+                    } else if (catNorm.includes('bâtiment') || qNorm.includes('bâtiment') || qNorm.includes('batiment')) {
+                        batiment = val;
+                    } else if (field.type === CONFIG.TYPES.GMF || qNorm.includes('gradin') || qNorm.includes('fixe') || qNorm.includes('mobile')) {
+                        fmg = val;
+                    }
+                    
+                    if (!isAno && field.type !== CONFIG.TYPES.YES_NO && field.type !== CONFIG.TYPES.TRUE_FALSE) {
+                        if (!catNorm.includes('capacité annoncée') && !qNorm.includes('capacité annoncée') &&
+                            !catNorm.includes('bâtiment') && !qNorm.includes('bâtiment') && !qNorm.includes('batiment') &&
+                            field.type !== CONFIG.TYPES.GMF && !qNorm.includes('gradin') && !qNorm.includes('fixe') && !qNorm.includes('mobile') &&
+                            !CONFIG.KEYWORDS.IDENTITY_COL.some(k => catNorm.includes(k))) {
+                            
+                            statsHtml += `
+                                <div class="identity-stat-item">
+                                    <span class="identity-stat-label">${field.question || field.category}</span>
+                                    <span class="identity-stat-value">${val}</span>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+
+                if (!statsHtml) {
+                    statsHtml = '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic; padding: 0.5rem 0;">Aucune donnée saisie</div>';
+                }
+
+                poolHtml += `
+                    <div class="identity-card">
+                        <div class="identity-card-header">
+                            <h4 class="identity-card-title">${roomName}</h4>
+                            <div class="identity-card-badges">
+                                <span class="identity-badge badge-building">🏢 ${batiment}</span>
+                                <span class="identity-badge badge-capacity">👥 ${capAnnoncee} places</span>
+                                <span class="identity-badge badge-type">🪑 ${fmg}</span>
+                            </div>
+                        </div>
+                        <div class="identity-card-body">
+                            <div class="identity-stat-list">
+                                ${statsHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (roomCount > 0) {
+                const poolName = session.fileName.replace(/\.xlsx$/i, '');
+                html += `
+                    <div class="identity-pool-group">
+                        <h3 class="identity-pool-header">📂 Pool : ${poolName} <span class="pool-count">${roomCount} auditoires</span></h3>
+                        <div class="identity-cards-grid">
+                            ${poolHtml}
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+        if (!html) {
+            html = `
+                <div class="empty-dashboard-state">
+                    <span style="font-size: 2rem;">🏷️</span>
+                    <p>Aucun auditoire ne correspond à votre recherche.</p>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+        
+        if (filterSelect && !filterSelect.dataset.listenerAttached) {
+            filterSelect.dataset.listenerAttached = 'true';
+            filterSelect.addEventListener('change', renderIdentityCards);
+        }
+    }
+
+    function isValAnomaly(field, val, announcedCapacity) {
+        if (val === null || val === undefined) return false;
+        const valStr = val.toString().trim();
+        if (valStr === '') return false;
+
+        const qNorm = (field.question || '').toLowerCase();
+        const catNorm = (field.category || '').toLowerCase();
+        const valNorm = valStr.toLowerCase();
+
+        // 1. o/n (Oui/Non) fields
+        if (field.type === CONFIG.TYPES.YES_NO) {
+            const isNegative = CONFIG.AUTO_FILL.NEGATIVE_KEYWORDS.some(k => qNorm.includes(k) || catNorm.includes(k));
+            if (isNegative) {
+                return valNorm === 'o' || valNorm === 'oui' || valNorm === 'v' || valNorm === 'vrai';
+            } else {
+                return valNorm === 'n' || valNorm === 'non' || valNorm === 'f' || valNorm === 'faux';
+            }
+        }
+
+        // 2. v/f (Vrai/Faux) fields
+        if (field.type === CONFIG.TYPES.TRUE_FALSE) {
+            const isNegative = CONFIG.AUTO_FILL.NEGATIVE_KEYWORDS.some(k => qNorm.includes(k) || catNorm.includes(k));
+            if (isNegative) {
+                return valNorm === 'v' || valNorm === 'vrai' || valNorm === 'o' || valNorm === 'oui';
+            } else {
+                return valNorm === 'f' || valNorm === 'faux' || valNorm === 'n' || valNorm === 'non';
+            }
+        }
+
+        // 3. Number fields
+        if (field.type === CONFIG.TYPES.NUMBER) {
+            const isCapaciteReelle = CONFIG.AUTO_FILL.CAPACITY_TARGET.some(t => qNorm.includes(t)) || catNorm.includes('capacité réelle');
+            if (isCapaciteReelle && announcedCapacity !== undefined && announcedCapacity !== null && announcedCapacity !== '') {
+                const real = Number(val);
+                const ann = Number(announcedCapacity);
+                if (!isNaN(real) && !isNaN(ann) && real < ann) {
+                    return true;
+                }
+            }
+            // Other numeric anomaly
+            const isNegative = CONFIG.AUTO_FILL.NEGATIVE_KEYWORDS.some(k => qNorm.includes(k) || catNorm.includes(k));
+            if (isNegative) {
+                const num = Number(val);
+                if (!isNaN(num) && num > 0) {
+                    return true;
+                }
+            }
+        }
+
+        // 4. Comment fields
+        const isComment = catNorm.includes('remarque') || catNorm.includes('constat') || catNorm.includes('commentaire') ||
+                          qNorm.includes('remarque') || qNorm.includes('constat') || qNorm.includes('commentaire');
+        if (isComment && valStr.length > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function getRowAnomalies(session, rowIndex) {
+        if (!session || !session.worksheet) return [];
+        const row = session.worksheet.getRow(rowIndex);
+        const anomaliesList = [];
+
+        let announcedCap = '';
+        const capField = session.schema.find(f => {
+            const fc = (f.category || '').toLowerCase();
+            const fq = (f.question || '').toLowerCase();
+            return fc === CONFIG.AUTO_FILL.CAPACITY_SOURCE || fq === CONFIG.AUTO_FILL.CAPACITY_SOURCE;
+        });
+        if (capField) {
+            announcedCap = getVal(row, capField.colIndex);
+        }
+
+        session.schema.forEach(field => {
+            if (!field.question) return;
+
+            const cell = row.getCell(field.colIndex);
+            let isExempt = false;
+            if (cell && cell.style && cell.style.fill) {
+                const f = cell.style.fill;
+                if (f.type === 'pattern' && f.pattern && f.pattern !== 'none' && f.pattern !== 'solid') {
+                    isExempt = true;
+                }
+            }
+
+            if (isExempt) return;
+
+            const val = getVal(row, field.colIndex);
+            if (isValAnomaly(field, val, announcedCap)) {
+                const qNorm = (field.question || '').toLowerCase();
+                const catNorm = (field.category || '').toLowerCase();
+                const isComment = catNorm.includes('remarque') || catNorm.includes('constat') || catNorm.includes('commentaire') ||
+                                  qNorm.includes('remarque') || qNorm.includes('constat') || qNorm.includes('commentaire');
+                
+                anomaliesList.push({
+                    colIndex: field.colIndex,
+                    category: field.category,
+                    question: field.question,
+                    value: val,
+                    type: field.type,
+                    isComment: isComment
+                });
+            }
+        });
+
+        return anomaliesList;
+    }
+
+    function renderPostReleveDashboard() {
+        if (sessions.size === 0) {
+            postReleveSection.innerHTML = `
+                <div class="empty-dashboard-state">
+                    <span style="font-size: 3rem;">📊</span>
+                    <h2>Aucun fichier actif</h2>
+                    <p>Veuillez charger des relevés Excel pour voir les analyses.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let totalFiles = sessions.size;
+        let totalRooms = 0;
+        let completedRoomsCount = 0;
+        let totalAnomaliesCount = 0;
+
+        const fileBreakdown = [];
+        const categoryStatsMap = new Map();
+        const allAnomalies = [];
+
+        const filterSelectVal = anomaliesFilterFile.value;
+        anomaliesFilterFile.innerHTML = '<option value="all">Tous les fichiers</option>';
+
+        sessions.forEach(session => {
+            const opt = document.createElement('option');
+            opt.value = session.id;
+            opt.textContent = session.fileName;
+            anomaliesFilterFile.appendChild(opt);
+
+            let sessionRoomsCount = session.dataRows.length;
+            let sessionCompletedCount = 0;
+            let sessionAnomaliesCount = 0;
+
+            totalRooms += sessionRoomsCount;
+
+            session.dataRows.forEach(item => {
+                const nameNorm = item.name.toLowerCase();
+                const threshold = nameNorm.includes('hall, sanitaire') ? 40 : 60;
+                const completion = getRowCompletion(session, item.rowIndex).percentage;
+
+                if (completion >= threshold) {
+                    completedRoomsCount++;
+                    sessionCompletedCount++;
+                }
+
+                const roomAnomalies = getRowAnomalies(session, item.rowIndex);
+                sessionAnomaliesCount += roomAnomalies.length;
+                totalAnomaliesCount += roomAnomalies.length;
+
+                roomAnomalies.forEach(anom => {
+                    allAnomalies.push({
+                        sessionId: session.id,
+                        fileName: session.fileName,
+                        rowIndex: item.rowIndex,
+                        roomName: item.name,
+                        ...anom
+                    });
+
+                    const catName = anom.category || 'Général';
+                    const statKey = `${catName}::${anom.question}`;
+                    if (!categoryStatsMap.has(statKey)) {
+                        categoryStatsMap.set(statKey, {
+                            category: catName,
+                            question: anom.question,
+                            count: 0
+                        });
+                    }
+                    categoryStatsMap.get(statKey).count++;
+                });
+            });
+
+            const sessionPct = sessionRoomsCount === 0 ? 0 : Math.round((sessionCompletedCount / sessionRoomsCount) * 100);
+            fileBreakdown.push({
+                id: session.id,
+                name: session.fileName,
+                total: sessionRoomsCount,
+                completed: sessionCompletedCount,
+                percentage: sessionPct,
+                anomalies: sessionAnomaliesCount
+            });
+        });
+
+        if (Array.from(anomaliesFilterFile.options).some(o => o.value === filterSelectVal)) {
+            anomaliesFilterFile.value = filterSelectVal;
+        } else {
+            anomaliesFilterFile.value = 'all';
+        }
+
+        const globalCompletionPct = totalRooms === 0 ? 0 : Math.round((completedRoomsCount / totalRooms) * 100);
+        dashboardMetricsRow.innerHTML = `
+            <div class="metric-card purple">
+                <div class="metric-icon">📂</div>
+                <div class="metric-info">
+                    <span class="metric-label">Fichiers Actifs</span>
+                    <span class="metric-value">${totalFiles}</span>
+                </div>
+            </div>
+            <div class="metric-card cyan">
+                <div class="metric-icon">🎓</div>
+                <div class="metric-info">
+                    <span class="metric-label">Auditoires Total</span>
+                    <span class="metric-value">${totalRooms}</span>
+                </div>
+            </div>
+            <div class="metric-card green">
+                <div class="metric-icon">📈</div>
+                <div class="metric-info">
+                    <span class="metric-label">Salles Complétées</span>
+                    <span class="metric-value">${completedRoomsCount} / ${totalRooms} (${globalCompletionPct}%)</span>
+                </div>
+            </div>
+            <div class="metric-card pink">
+                <div class="metric-icon">🚨</div>
+                <div class="metric-info">
+                    <span class="metric-label">Anomalies</span>
+                    <span class="metric-value">${totalAnomaliesCount}</span>
+                </div>
+            </div>
+        `;
+
+        dashboardFilesList.innerHTML = '';
+        fileBreakdown.forEach(file => {
+            const card = document.createElement('div');
+            card.className = 'excel-card';
+            card.innerHTML = `
+                <div class="excel-card-header">
+                    <span class="excel-card-title" title="${file.name}">${file.name.replace(/\.xlsx$/i, '')}</span>
+                    <span class="excel-card-stats">${file.completed}/${file.total} salles</span>
+                </div>
+                <div class="excel-card-progress">
+                    <div class="excel-card-track">
+                        <div class="excel-card-fill" style="width: ${file.percentage}%;"></div>
+                    </div>
+                    <span class="excel-card-pct">${file.percentage}%</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.25rem;">
+                    <span style="font-size:0.7rem; color:var(--text-muted);">⚠️ ${file.anomalies} anomalie(s)</span>
+                    <button class="anomaly-goto-btn" type="button" style="padding:0.2rem 0.5rem; font-size:0.65rem;">
+                        Ouvrir
+                    </button>
+                </div>
+            `;
+
+            card.querySelector('.anomaly-goto-btn').addEventListener('click', () => {
+                switchToSession(file.id);
+                switchMode('releve');
+            });
+
+            dashboardFilesList.appendChild(card);
+        });
+
+        dashboardStatsList.innerHTML = '';
+        const statsListSorted = Array.from(categoryStatsMap.values())
+            .filter(item => item.count > 0)
+            .sort((a, b) => b.count - a.count);
+
+        if (statsListSorted.length === 0) {
+            dashboardStatsList.innerHTML = '<div style="font-size:0.75rem; color:var(--text-muted); text-align:center; padding:1rem 0;">Aucune anomalie détectée !</div>';
+        } else {
+            statsListSorted.forEach(stat => {
+                const row = document.createElement('div');
+                row.className = 'stat-row';
+                row.style.cursor = 'pointer';
+                row.title = 'Filtrer sur cette question';
+                row.innerHTML = `
+                    <span class="stat-name">
+                        <span class="anomaly-cat-icon">${getCategoryIcon(stat.category)}</span>
+                        <strong style="color:var(--text-primary); margin-right:3px;">${stat.category}</strong>
+                        <span>- ${stat.question}</span>
+                    </span>
+                    <span class="stat-count">${stat.count}</span>
+                `;
+
+                row.addEventListener('click', () => {
+                    anomaliesSearchInput.value = stat.question;
+                    renderAnomaliesFeed(allAnomalies);
+                });
+
+                dashboardStatsList.appendChild(row);
+            });
+        }
+
+        renderAnomaliesFeed(allAnomalies);
+        renderExportCheckboxes();
+        populateRemarksDropdown();
+    }
+
+    function renderAnomaliesFeed(allAnomalies) {
+        anomaliesFeed.innerHTML = '';
+        const query = anomaliesSearchInput.value.toLowerCase().trim();
+        const fileFilter = anomaliesFilterFile.value;
+
+        const filtered = allAnomalies.filter(anom => {
+            if (fileFilter !== 'all' && anom.sessionId !== fileFilter) return false;
+            
+            if (query !== '') {
+                const searchSpace = `${anom.roomName} ${anom.category} ${anom.question} ${anom.value}`.toLowerCase();
+                if (!searchSpace.includes(query)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            anomaliesFeed.innerHTML = '<div class="empty-state" style="margin-top:15%">Aucune anomalie trouvée.</div>';
+            return;
+        }
+
+        filtered.sort((a, b) => {
+            if (a.isComment && !b.isComment) return 1;
+            if (!a.isComment && b.isComment) return -1;
+            return 0;
+        });
+
+        filtered.forEach(anom => {
+            const card = document.createElement('div');
+            card.className = 'anomaly-card';
+            if (anom.isComment) {
+                card.style.borderColor = 'rgba(251, 191, 36, 0.15)';
+                card.style.background = 'rgba(251, 191, 36, 0.01)';
+            }
+
+            const cleanFileName = anom.fileName.replace(/\.xlsx$/i, '');
+
+            card.innerHTML = `
+                <div class="anomaly-card-top">
+                    <div class="anomaly-location">
+                        <span class="anomaly-building">${cleanFileName}</span>
+                        <span class="anomaly-room">${anom.roomName}</span>
+                    </div>
+                    <button class="anomaly-goto-btn" type="button">
+                        ✏️ Corriger
+                    </button>
+                </div>
+                <div class="anomaly-details" style="${anom.isComment ? 'border-color: rgba(251, 191, 36, 0.1);' : ''}">
+                    <span class="anomaly-cat-icon">${getCategoryIcon(anom.category)}</span>
+                    <span class="anomaly-q"><strong>${anom.category}</strong> - ${anom.question}</span>
+                    <span class="anomaly-bad-val" style="${anom.isComment ? 'color: var(--warning-color); background: rgba(251, 191, 36, 0.12);' : ''}">
+                        ${anom.value}
+                    </span>
+                </div>
+            `;
+
+            card.querySelector('.anomaly-goto-btn').addEventListener('click', () => {
+                switchToSession(anom.sessionId);
+                const session = sessions.get(anom.sessionId);
+                if (session) {
+                    const idx = session.dataRows.findIndex(r => r.rowIndex === anom.rowIndex);
+                    if (idx !== -1) {
+                        selectAuditoire(idx);
+                        switchMode('releve');
+
+                        setTimeout(() => {
+                            const fieldName = `field-${anom.colIndex}`;
+                            const input = formContainer.querySelector(`input[name="${fieldName}"], textarea[name="${fieldName}"]`);
+                            if (input) {
+                                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                if (input.type === 'radio') {
+                                    const radios = formContainer.querySelectorAll(`input[name="${fieldName}"]`);
+                                    const checked = Array.from(radios).find(r => r.value === anom.value.toString().toLowerCase());
+                                    if (checked) checked.focus();
+                                    else if (radios.length > 0) radios[0].focus();
+                                } else {
+                                    input.focus();
+                                }
+                                const group = input.closest('.field-group');
+                                if (group) {
+                                    group.style.borderColor = 'var(--primary-color)';
+                                    group.style.boxShadow = '0 0 12px var(--primary-glow)';
+                                    setTimeout(() => {
+                                        group.style.borderColor = '';
+                                        group.style.boxShadow = '';
+                                    }, 2000);
+                                }
+                            }
+                        }, 300);
+                    }
+                }
+            });
+
+            anomaliesFeed.appendChild(card);
+        });
+    }
+
+    function renderExportCheckboxes() {
+        const prevCheckedFiles = new Set(Array.from(exportFilesCheckboxes.querySelectorAll('input:checked')).map(i => i.value));
+        exportFilesCheckboxes.innerHTML = '';
+        
+        sessions.forEach(session => {
+            const item = document.createElement('label');
+            item.className = 'export-checkbox-item';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = session.id;
+            checkbox.checked = prevCheckedFiles.size === 0 || prevCheckedFiles.has(session.id);
+            
+            const span = document.createElement('span');
+            span.textContent = session.fileName;
+            
+            item.appendChild(checkbox);
+            item.appendChild(span);
+            exportFilesCheckboxes.appendChild(item);
+        });
+
+        const categories = new Set();
+        sessions.forEach(session => {
+            session.schema.forEach(field => {
+                if (field.category) categories.add(field.category);
+            });
+        });
+
+        const prevCheckedCats = new Set(Array.from(exportCategoriesCheckboxes.querySelectorAll('input:checked')).map(i => i.value));
+        exportCategoriesCheckboxes.innerHTML = '';
+
+        Array.from(categories).sort().forEach(cat => {
+            const item = document.createElement('label');
+            item.className = 'export-checkbox-item';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = cat;
+            checkbox.checked = prevCheckedCats.size === 0 || prevCheckedCats.has(cat);
+            
+            const span = document.createElement('span');
+            span.textContent = `${getCategoryIcon(cat)} ${cat}`;
+            
+            item.appendChild(checkbox);
+            item.appendChild(span);
+            exportCategoriesCheckboxes.appendChild(item);
+        });
+    }
+
+    function populateRemarksDropdown() {
+        const select = document.getElementById('remark-auditoire-select');
+        const genInput = document.getElementById('remarque-generale-input');
+        const debInput = document.getElementById('debriefing-input');
+        if (!select || !genInput || !debInput) return;
+
+        select.innerHTML = '<option value="">-- Choisir un auditoire --</option>';
+        
+        sessions.forEach(session => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = session.fileName.replace(/\.xlsx$/i, '');
+            
+            session.dataRows.forEach(row => {
+                const opt = document.createElement('option');
+                opt.value = `${session.id}::${row.name}`;
+                opt.textContent = row.name;
+                optgroup.appendChild(opt);
+            });
+            
+            select.appendChild(optgroup);
+        });
+
+        // Reset inputs
+        genInput.value = '';
+        debInput.value = '';
+    }
+
+    const remarkSelect = document.getElementById('remark-auditoire-select');
+    const remarkGenInput = document.getElementById('remarque-generale-input');
+    const remarkDebInput = document.getElementById('debriefing-input');
+    const saveRemarkBtn = document.getElementById('save-remark-btn');
+
+    if (remarkSelect && remarkGenInput && remarkDebInput && saveRemarkBtn) {
+        remarkSelect.addEventListener('change', async () => {
+            const val = remarkSelect.value;
+            if (!val) {
+                remarkGenInput.value = '';
+                remarkDebInput.value = '';
+                return;
+            }
+            const [sessionId, roomName] = val.split('::');
+            const remarkData = await loadRemarkFromDB(sessionId, roomName);
+            if (remarkData) {
+                remarkGenInput.value = remarkData.remarqueGenerale || '';
+                remarkDebInput.value = remarkData.debriefing || '';
+            } else {
+                remarkGenInput.value = '';
+                remarkDebInput.value = '';
+            }
+        });
+
+        saveRemarkBtn.addEventListener('click', () => {
+            const val = remarkSelect.value;
+            if (!val) {
+                showAlert('Veuillez sélectionner un auditoire.', '⚠️', 'Attention');
+                return;
+            }
+            const [sessionId, roomName] = val.split('::');
+            const genText = remarkGenInput.value.trim();
+            const debText = remarkDebInput.value.trim();
+            
+            saveRemarkToDB(sessionId, roomName, genText, debText);
+            
+            const originalText = saveRemarkBtn.innerHTML;
+            saveRemarkBtn.innerHTML = '✅ Enregistré !';
+            setTimeout(() => {
+                saveRemarkBtn.innerHTML = originalText;
+                renderSidebar(); // Update the bubble indicator in sidebar
+            }, 2000);
+        });
+    }
+
+
+
+    async function exportAnomaliesReport() {
+        const checkedFileIds = Array.from(exportFilesCheckboxes.querySelectorAll('input:checked')).map(i => i.value);
+        const checkedCategories = new Set(Array.from(exportCategoriesCheckboxes.querySelectorAll('input:checked')).map(i => i.value));
+        const poolType = document.querySelector('input[name="export-pool"]:checked').value;
+
+        if (checkedFileIds.length === 0) {
+            showAlert('Veuillez sélectionner au moins un fichier à inclure.', '⚠️', 'Export impossible');
+            return;
+        }
+        if (checkedCategories.size === 0) {
+            showAlert('Veuillez sélectionner au moins une catégorie à inclure.', '⚠️', 'Export impossible');
+            return;
+        }
+
+        try {
+            const outWb = new ExcelJS.Workbook();
+            const outWs = outWb.addWorksheet('Anomalies');
+
+            outWs.columns = [
+                { header: 'Bâtiment / Fichier', key: 'file', width: 22 },
+                { header: 'Auditoire', key: 'room', width: 20 },
+                { header: 'Catégorie', key: 'category', width: 20 },
+                { header: 'Question', key: 'question', width: 35 },
+                { header: 'Valeur Relevée', key: 'value', width: 16 },
+                { header: 'Type de constat', key: 'type', width: 16 },
+                { header: 'Remarque générale', key: 'remarque', width: 30 },
+                { header: 'Débriefing', key: 'debriefing', width: 30 }
+            ];
+
+            const headerRow = outWs.getRow(1);
+            headerRow.height = 24;
+            headerRow.eachCell(cell => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Segoe UI', size: 11 };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF1E2234' }
+                };
+                cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                cell.border = {
+                    bottom: { style: 'medium', color: { argb: 'FF6366F1' } }
+                };
+            });
+
+            let count = 0;
+            for (const sessId of checkedFileIds) {
+                const session = sessions.get(sessId);
+                if (!session) continue;
+
+                const remarksArray = await loadAllRemarksForSession(sessId);
+                const remarksMap = new Map();
+                remarksArray.forEach(r => remarksMap.set(r.roomName, r));
+
+                session.dataRows.forEach(item => {
+                    const completion = getRowCompletion(session, item.rowIndex).percentage;
+                    const roomAnomalies = getRowAnomalies(session, item.rowIndex);
+
+                    if (poolType === 'anomalies' && roomAnomalies.length === 0) return;
+                    
+                    const nameNorm = item.name.toLowerCase();
+                    const threshold = nameNorm.includes('hall, sanitaire') ? 40 : 60;
+                    if (poolType === 'completed' && completion < threshold) return;
+
+                    const roomRemark = remarksMap.get(item.name) || {};
+
+                    roomAnomalies.forEach(anom => {
+                        if (!checkedCategories.has(anom.category)) return;
+
+                        const row = outWs.addRow({
+                            file: session.fileName.replace(/\.xlsx$/i, ''),
+                            room: item.name,
+                            category: anom.category,
+                            question: anom.question,
+                            value: anom.value,
+                            type: anom.isComment ? 'Remarque / Note' : 'Anomalie',
+                            remarque: roomRemark.remarqueGenerale || '',
+                            debriefing: roomRemark.debriefing || ''
+                        });
+
+                        row.eachCell((cell, colNum) => {
+                            cell.font = { name: 'Segoe UI', size: 10 };
+                            if (colNum === 5 || colNum === 6) {
+                                if (anom.isComment) {
+                                    cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FFD97706' }, bold: true };
+                                } else {
+                                    cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FFEF4444' }, bold: true };
+                                }
+                            }
+                            cell.border = {
+                                bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                            };
+                            cell.alignment = { vertical: 'middle' };
+                        });
+                        count++;
+                    });
+                });
+            }
+
+            if (count === 0) {
+                showAlert('Aucune anomalie ne correspond aux filtres d\'export sélectionnés.', 'ℹ️', 'Export vide');
+                return;
+            }
+
+            const buffer = await outWb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Rapport_Anomalies_Consolide.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            showAlert(`Rapport d'anomalies consolidé généré avec succès (${count} anomalies exportées).`, '✅', 'Export terminé');
+
+        } catch (error) {
+            console.error('Error generating anomalies report:', error);
+            showAlert('Une erreur est survenue lors de la génération du rapport.', '❌', 'Erreur export');
+        }
+    }
+
+    async function exportFilteredWorkbooks() {
+        const checkedFileIds = Array.from(exportFilesCheckboxes.querySelectorAll('input:checked')).map(i => i.value);
+        const checkedCategories = new Set(Array.from(exportCategoriesCheckboxes.querySelectorAll('input:checked')).map(i => i.value));
+        const poolType = document.querySelector('input[name="export-pool"]:checked').value;
+
+        if (checkedFileIds.length === 0) {
+            showAlert('Veuillez sélectionner au moins un fichier à inclure.', '⚠️', 'Export impossible');
+            return;
+        }
+
+        try {
+            for (const sessId of checkedFileIds) {
+                const session = sessions.get(sessId);
+                if (!session) continue;
+
+                const originalBuffer = await session.workbook.xlsx.writeBuffer();
+                const cloneWb = new ExcelJS.Workbook();
+                await cloneWb.xlsx.load(originalBuffer);
+                const cloneWs = cloneWb.worksheets[0];
+
+                const rowsToDelete = [];
+                session.dataRows.forEach(item => {
+                    const completion = getRowCompletion(session, item.rowIndex).percentage;
+                    const roomAnomalies = getRowAnomalies(session, item.rowIndex);
+
+                    let keep = true;
+                    if (poolType === 'anomalies' && roomAnomalies.length === 0) keep = false;
+                    
+                    const nameNorm = item.name.toLowerCase();
+                    const threshold = nameNorm.includes('hall, sanitaire') ? 40 : 60;
+                    if (poolType === 'completed' && completion < threshold) keep = false;
+
+                    if (!keep) {
+                        rowsToDelete.push(item.rowIndex);
+                    }
+                });
+
+                rowsToDelete.sort((a, b) => b - a);
+                rowsToDelete.forEach(idx => {
+                    cloneWs.spliceRows(idx, 1);
+                });
+
+                session.schema.forEach(field => {
+                    const catNorm = (field.category || '').toLowerCase().trim();
+                    const questNorm = (field.question || '').toLowerCase().trim();
+                    const isBatiment = catNorm === 'bâtiments' || catNorm === 'batiments' || questNorm === 'bâtiments' || questNorm === 'batiments';
+                    const isAuditoire = catNorm === 'auditoires' || questNorm === 'auditoires';
+                    const isCapacite = catNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE) || questNorm.includes(CONFIG.AUTO_FILL.CAPACITY_SOURCE);
+
+                    if (isBatiment || isAuditoire || isCapacite) {
+                        return;
+                    }
+
+                    if (!checkedCategories.has(field.category)) {
+                        cloneWs.getColumn(field.colIndex).hidden = true;
+                    }
+                });
+
+                const buffer = await cloneWb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const baseName = session.fileName.replace(/\.xlsx$/i, '');
+                a.download = `${baseName}_Filtre.xlsx`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            showAlert('Les fichiers filtrés ont été générés et téléchargés avec succès.', '✅', 'Export terminé');
+
+        } catch (error) {
+            console.error('Error exporting filtered workbooks:', error);
+            showAlert('Une erreur est survenue lors de l\'export des fichiers filtrés.', '❌', 'Erreur export');
+        }
+    }
+
+    // Event Listeners for Switcher & Dashboard
+    if (modeReleveBtn) modeReleveBtn.addEventListener('click', () => switchMode('releve'));
+    if (modePostBtn) modePostBtn.addEventListener('click', () => switchMode('post'));
+    if (modeStatsBtn) modeStatsBtn.addEventListener('click', () => switchMode('stats'));
+    if (modeIdentityBtn) modeIdentityBtn.addEventListener('click', () => switchMode('identity'));
+    
+    if (anomaliesSearchInput) {
+        anomaliesSearchInput.addEventListener('input', () => {
+            const allAnoms = [];
+            sessions.forEach(session => {
+                session.dataRows.forEach(item => {
+                    const roomAnoms = getRowAnomalies(session, item.rowIndex);
+                    roomAnoms.forEach(anom => {
+                        allAnoms.push({
+                            sessionId: session.id,
+                            fileName: session.fileName,
+                            rowIndex: item.rowIndex,
+                            roomName: item.name,
+                            ...anom
+                        });
+                    });
+                });
+            });
+            renderAnomaliesFeed(allAnoms);
+        });
+    }
+
+    if (anomaliesFilterFile) {
+        anomaliesFilterFile.addEventListener('change', () => {
+            const allAnoms = [];
+            sessions.forEach(session => {
+                session.dataRows.forEach(item => {
+                    const roomAnoms = getRowAnomalies(session, item.rowIndex);
+                    roomAnoms.forEach(anom => {
+                        allAnoms.push({
+                            sessionId: session.id,
+                            fileName: session.fileName,
+                            rowIndex: item.rowIndex,
+                            roomName: item.name,
+                            ...anom
+                        });
+                    });
+                });
+            });
+            renderAnomaliesFeed(allAnoms);
+        });
+    }
+
+    if (generateSampleBtn) generateSampleBtn.addEventListener('click', () => generateVerificationSample());
+    if (exportAnomaliesXlsxBtn) exportAnomaliesXlsxBtn.addEventListener('click', () => exportAnomaliesReport());
+    if (exportFilteredXlsxBtn) exportFilteredXlsxBtn.addEventListener('click', () => exportFilteredWorkbooks());
+
+    // Identity Search
+    const identitySearchInput = document.getElementById('identity-search-input');
+    if (identitySearchInput) {
+        identitySearchInput.addEventListener('input', renderIdentityCards);
+    }
+
+    // Toggle All Checkboxes
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('toggle-all-btn')) {
+            const targetId = e.target.getAttribute('data-target');
+            if (targetId) {
+                const container = document.getElementById(targetId);
+                if (container) {
+                    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                    checkboxes.forEach(cb => cb.checked = !allChecked);
+                }
+            }
+        }
+    });
+
     initDB();
+
+    // Register Service Worker for PWA with OTA Update Handling
+    if ('serviceWorker' in navigator) {
+        let refreshing = false;
+
+        // When the new worker takes control, reload the page
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
+        });
+
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('ServiceWorker registration successful:', reg.scope);
+
+            // Function to ask user if they want to update
+            const promptUserToUpdate = (worker) => {
+                showModal({
+                    icon: '🚀',
+                    title: 'Mise à jour disponible !',
+                    message: "Une nouvelle version de l'application est prête. Vos données et sauvegardes ne seront pas perdues. Voulez-vous mettre à jour maintenant ?",
+                    buttons: [
+                        { label: 'Plus tard', value: 'cancel' },
+                        { label: 'Mettre à jour', value: 'update', primary: true }
+                    ]
+                }).then(choice => {
+                    if (choice === 'update') {
+                        // Tell the new worker to skip waiting
+                        worker.postMessage({ action: 'skipWaiting' });
+                    }
+                });
+            };
+
+            // If a worker is already waiting to take over
+            if (reg.waiting) {
+                promptUserToUpdate(reg.waiting);
+                return;
+            }
+
+            // If a worker is installing, wait for it to finish
+            if (reg.installing) {
+                const worker = reg.installing;
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                        promptUserToUpdate(worker);
+                    }
+                });
+                return;
+            }
+
+            // Listen for new workers arriving
+            reg.addEventListener('updatefound', () => {
+                const worker = reg.installing;
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // A new worker is installed and waiting
+                        promptUserToUpdate(worker);
+                    }
+                });
+            });
+
+        }).catch(err => {
+            console.log('ServiceWorker registration failed:', err);
+        });
+    }
+
 });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tavl-cache-v1';
+const CACHE_NAME = 'tavl-cache-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -63,6 +63,13 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
     );
+});
+
+// Listen for messages from clients to trigger update
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.action === 'skipWaiting') {
+        self.skipWaiting();
+    }
 });
