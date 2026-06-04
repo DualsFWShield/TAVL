@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="exceljs.min.js"></script>
 </head>
 
 <body>
@@ -95,6 +95,7 @@
                 <section class="editor-panel">
                     <div class="editor-header">
                         <h2 id="current-auditoire-title">Sélectionnez un auditoire</h2>
+                        <span id="progress-badge" class="progress-badge">0/0</span>
 
                         <div class="search-container"
                             style="display: none; flex: 1; max-width: 280px; margin: 0 0.75rem; position: relative;"
@@ -106,12 +107,12 @@
 
                         <div class="editor-actions">
                             <button id="fill-defaults-btn" class="secondary-btn" title="Remplir par défaut">
-                                ⚡ Remplir
+                                ⚡ <span class="btn-label">Remplir</span>
                             </button>
                             <button id="unlock-btn" class="secondary-btn" title="Mode Édition Forcée">
                                 🔓
                             </button>
-                            <button id="clear-btn" class="secondary-btn">✕ Fermer</button>
+                            <button id="clear-btn" class="secondary-btn">✕ <span class="btn-label">Fermer</span></button>
                         </div>
                     </div>
 

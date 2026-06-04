@@ -102,19 +102,44 @@ body {
 @media (min-width: 768px) { .logo p { display: block; } }
 
 @media (max-width: 768px) {
-    .app-header { padding-top: 0.5rem; justify-content: space-between; }
-    .mode-switcher { 
-        order: 3; width: 100%; justify-content: flex-start; margin-top: 0.25rem; 
-        overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; 
-        padding-bottom: 0.4rem;
+    .app-container { padding: 0.25rem; }
+    .app-header {
+        padding-top: 0.25rem; justify-content: space-between;
+        min-height: auto; margin-bottom: 0.15rem; gap: 0.2rem;
     }
-    .mode-switcher::-webkit-scrollbar { height: 0px; display: none; }
-    .mode-tab { flex-shrink: 0; }
-    
-    .file-tabs-bar { padding: 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .file-tab { flex-shrink: 0; }
-    
-    .form-container { padding: 1rem; border-radius: var(--radius-lg); width: 100%; }
+    .header-left { gap: 0.4rem; }
+    .logo h1 { font-size: 1.1rem; }
+    .header-controls { gap: 0.3rem; }
+    .header-controls .action-btn.primary { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
+    .header-controls .action-btn.secondary { font-size: 0.95rem; padding: 0.3rem; }
+
+    /* Hide mode-switcher & file-tabs from original positions (JS moves them to sidebar) */
+    .app-header > .mode-switcher { display: none !important; }
+    .main-content > .file-tabs-bar { display: none !important; }
+
+    /* Style mode-switcher & file-tabs when inside the sidebar drawer */
+    .sidebar > .mode-switcher:not(.hidden) {
+        display: flex !important;
+        width: 100%; order: unset; margin: 0;
+        overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch;
+        padding: 0.6rem 0.75rem; gap: 0.2rem;
+        border-bottom: 1px solid var(--border-subtle);
+        border-radius: 0; background: rgba(99,102,241,0.03);
+    }
+    .sidebar > .mode-switcher .mode-tab {
+        flex-shrink: 0; padding: 0.35rem 0.7rem; font-size: 0.78rem;
+    }
+    .sidebar > .file-tabs-bar:not(.hidden) {
+        display: flex !important;
+        padding: 0.5rem 0.75rem; margin: 0;
+        border-bottom: 1px solid var(--border-subtle);
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .sidebar > .file-tabs-bar .file-tab {
+        flex-shrink: 0; padding: 0.3rem 0.5rem 0.3rem 0.7rem; font-size: 0.78rem;
+    }
+
+    .form-container { padding: 0.75rem; border-radius: var(--radius-lg); width: 100%; }
     .field-group { width: 100%; }
     .pill-group { flex-wrap: wrap; width: 100%; }
     .pill-option { flex: 1 1 auto; min-width: 80px; }
@@ -329,10 +354,66 @@ body {
 }
 .editor-header h2 { font-size: 1.05rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .editor-actions { display: flex; align-items: center; gap: 0.4rem; }
-@media (max-width: 600px) {
-    .editor-header { flex-direction: column; align-items: stretch; padding: 0.75rem; }
-    .editor-header h2 { text-align: center; }
-    .editor-actions { justify-content: center; width: 100%; }
+/* ===== MOBILE COMPACT EDITOR ===== */
+@media (max-width: 768px) {
+    .editor-header {
+        flex-wrap: wrap;
+        padding: 0.4rem 0.75rem;
+        gap: 0.3rem;
+        align-items: center;
+    }
+    /* Force title + badge + actions on line 1, search on line 2 via order */
+    .editor-header h2 {
+        order: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        font-size: 0.88rem;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    /* Show progress badge on mobile */
+    .progress-badge {
+        order: 2;
+        display: inline-flex !important;
+    }
+    .editor-actions {
+        order: 3;
+        gap: 0.15rem;
+        flex-shrink: 0;
+    }
+    /* Icon-only buttons on mobile */
+    .editor-actions .btn-label {
+        display: none;
+    }
+    .editor-actions .secondary-btn {
+        padding: 0.3rem 0.45rem;
+        font-size: 0.82rem;
+        min-width: 28px;
+        justify-content: center;
+    }
+    /* Search container takes full row, after everything else */
+    #search-container {
+        order: 10;
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    /* Compact progress bar — thin track only, no labels */
+    .progress-bar-container {
+        padding: 0 !important;
+        border-bottom: none !important;
+    }
+    .progress-bar-container .progress-info {
+        display: none;
+    }
+    .progress-bar-container .progress-track {
+        height: 3px;
+        border-radius: 0;
+    }
+    .progress-bar-container .progress-fill {
+        border-radius: 0;
+    }
 }
 
 /* ===== PROGRESS BAR ===== */
@@ -354,6 +435,22 @@ body {
     height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
     background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
     box-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* ===== PROGRESS BADGE (mobile inline counter) ===== */
+.progress-badge {
+    display: none; /* Hidden on desktop */
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--primary-light);
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    padding: 0.15rem 0.55rem;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-items: center;
+    letter-spacing: 0.02em;
 }
 
 /* ===== STICKY CATEGORY HEADER ===== */

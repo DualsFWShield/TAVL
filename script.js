@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBarContainer = document.getElementById('progress-bar-container');
     const progressFill = document.getElementById('progress-fill');
     const progressCount = document.getElementById('progress-count');
+    const progressBadge = document.getElementById('progress-badge');
     const scrollTopBtn = document.getElementById('scroll-top-btn');
 
     // Category icon mapping
@@ -1018,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentAuditoireTitle.textContent = 'Sélectionnez un auditoire';
             if (searchContainer) searchContainer.style.display = 'none';
             if (progressBarContainer) progressBarContainer.style.display = 'none';
+            if (progressBadge) progressBadge.style.display = 'none';
 
             uploadSection.classList.add('hidden');
             fileTabsBar.classList.remove('hidden');
@@ -1161,6 +1163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentAuditoireTitle.textContent = 'Sélectionnez un auditoire';
         if (searchContainer) searchContainer.style.display = 'none';
         if (progressBarContainer) progressBarContainer.style.display = 'none';
+        if (progressBadge) progressBadge.style.display = 'none';
     }
 
     async function closeSession(sessionId) {
@@ -1328,6 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.value = '';
         if (searchContainer) searchContainer.style.display = 'block';
         if (progressBarContainer) progressBarContainer.style.display = 'block';
+        if (progressBadge) progressBadge.style.display = '';
         closeDrawer();
     }
 
@@ -1352,6 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pct = total === 0 ? 0 : Math.round((filled / total) * 100);
         progressFill.style.width = pct + '%';
         progressCount.textContent = filled + '/' + total;
+        if (progressBadge) progressBadge.textContent = filled + '/' + total;
     }
 
     function renderForm(rowIndex) {
@@ -2074,6 +2079,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentAuditoireTitle.textContent = 'Sélectionnez un auditoire';
                 if (searchContainer) searchContainer.style.display = 'none';
                 if (progressBarContainer) progressBarContainer.style.display = 'none';
+                if (progressBadge) progressBadge.style.display = 'none';
             }
             if (window.innerWidth <= 768) {
                 burgerBtn.classList.remove('hidden');
@@ -3103,10 +3109,82 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event Listeners for Switcher & Dashboard
-    if (modeReleveBtn) modeReleveBtn.addEventListener('click', () => switchMode('releve'));
-    if (modePostBtn) modePostBtn.addEventListener('click', () => switchMode('post'));
-    if (modeStatsBtn) modeStatsBtn.addEventListener('click', () => switchMode('stats'));
-    if (modeIdentityBtn) modeIdentityBtn.addEventListener('click', () => switchMode('identity'));
+    if (modeReleveBtn) modeReleveBtn.addEventListener('click', () => { switchMode('releve'); if (window.innerWidth <= 768) closeDrawer(); });
+    if (modePostBtn) modePostBtn.addEventListener('click', () => { switchMode('post'); if (window.innerWidth <= 768) closeDrawer(); });
+    if (modeStatsBtn) modeStatsBtn.addEventListener('click', () => { switchMode('stats'); if (window.innerWidth <= 768) closeDrawer(); });
+    if (modeIdentityBtn) modeIdentityBtn.addEventListener('click', () => { switchMode('identity'); if (window.innerWidth <= 768) closeDrawer(); });
+
+    /* ==========================================================================
+       MOBILE LAYOUT: Move mode-switcher & file-tabs into sidebar drawer
+       ========================================================================== */
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+    const appHeader = document.querySelector('.app-header');
+    const headerControls = document.querySelector('.header-controls');
+    const mainContent = document.querySelector('.main-content');
+
+    function relocateMobileControls(isMobile) {
+        if (!sidebar) return;
+        const sidebarHeader = sidebar.querySelector('.sidebar-header');
+        if (!sidebarHeader) return;
+
+        if (isMobile) {
+            if (modeSwitcher && modeSwitcher.parentElement !== sidebar) {
+                sidebar.insertBefore(modeSwitcher, sidebarHeader);
+            }
+            if (fileTabsBar && fileTabsBar.parentElement !== sidebar) {
+                sidebarHeader.before(fileTabsBar);
+            }
+        } else {
+            if (modeSwitcher && modeSwitcher.parentElement === sidebar) {
+                appHeader.insertBefore(modeSwitcher, headerControls);
+            }
+            if (fileTabsBar && fileTabsBar.parentElement === sidebar) {
+                mainContent.insertBefore(fileTabsBar, splitView);
+            }
+        }
+    }
+
+    mobileQuery.addEventListener('change', (e) => relocateMobileControls(e.matches));
+    relocateMobileControls(mobileQuery.matches);
+
+    // Close drawer when clicking a file tab on mobile
+    if (fileTabs) {
+        fileTabs.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && e.target.closest('.file-tab')) {
+                closeDrawer();
+            }
+        });
+    }
+
+    /* ==========================================================================
+       MAGIC SEARCH BAR: Auto-focus search on typing when no field is active
+       ========================================================================== */
+    document.addEventListener('keydown', (e) => {
+        // Only when an auditoire is selected and search is visible
+        const session = S();
+        if (!session || !session.currentRowIndex) return;
+        if (!searchContainer || searchContainer.style.display === 'none') return;
+        if (!searchInput) return;
+
+        // Already focused on search
+        if (document.activeElement === searchInput) return;
+
+        // Don't interfere with form fields
+        const active = document.activeElement;
+        if (active && (
+            active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.tagName === 'SELECT' ||
+            active.isContentEditable
+        )) return;
+
+        // Only printable characters, no modifiers
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key.length !== 1) return;
+
+        // Focus search and let the character be typed
+        searchInput.focus();
+    });
     
     if (anomaliesSearchInput) {
         anomaliesSearchInput.addEventListener('input', () => {
